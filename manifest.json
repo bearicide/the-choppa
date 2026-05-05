@@ -1,0 +1,25 @@
+{
+  "name": "The Choppa by MATTBEAR",
+  "short_name": "The Choppa",
+  "description": "Mobile-friendly auto-chop pad drummer for loops, pads, keys, touch, mouse, QWERTY, and Launchkey Mini MIDI.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07080b",
+  "theme_color": "#6dff7a",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
