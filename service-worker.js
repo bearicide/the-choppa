@@ -1,4 +1,4 @@
-const CACHE_NAME = "the-choppa-pwa-v4-title-defaults";
+const CACHE_NAME = "the-choppa-pwa-v5-pad-loop";
 const APP_FILES = [
   "./",
   "./index.html",
