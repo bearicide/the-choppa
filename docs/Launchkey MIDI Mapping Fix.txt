@@ -1,0 +1,38 @@
+Done. 🐻
+
+Created:
+
+```text id="rbl008"
+back-to-original.html
+```
+
+on the **reactor-chaos-visuals** branch.
+
+It contains:
+
+- ✅ Link to original/live Choppa
+- ✅ Link back to enhanced branch build
+- ✅ Clear "Enhanced Branch" purpose
+- ✅ MATTBEAR styling
+
+Commit:
+
+```text id="v3abf6"
+b5f87457b422f7a7b02996fab58a85430538faf7
+```
+
+And you're right — this should be part of the workflow too:
+
+```text id="kmubl4"
+New branch/build created
+↓
+Forward link to enhanced build
+↓
+Back link to original/live build
+↓
+No orphan branches
+↓
+No getting lost
+```
+
+That's a better ecosystem rule than having random experimental builds floating around with no navigation. 😏🎹🐻🌈
