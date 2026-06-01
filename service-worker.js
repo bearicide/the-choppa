@@ -1,4 +1,4 @@
-const CACHE_NAME = "the-choppa-pwa-v3-midi-autofix";
+const CACHE_NAME = "the-choppa-pwa-v4-title-defaults";
 const APP_FILES = [
   "./",
   "./index.html",
