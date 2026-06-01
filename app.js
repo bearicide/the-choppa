@@ -10,10 +10,40 @@
   let ctx, master, filter, analyser, fx, buffer, gateTimer;
   let slices = [], active = [], fileName = "none", ready = false;
   let autoCCMap = {}, autoCCNext = 0, autoPadMap = {}, autoPadNext = 0;
+  let loopPads = new Map(), loopScheduler = null, nextLoopTime = 0, transportStart = 0;
 
-  function status(msg){ $("status").textContent = msg; }
-  function midiMon(msg){ $("midiMon").textContent = msg; }
+  function status(msg){ const el = $("status"); if(el) el.textContent = msg; }
+  function midiMon(msg){ const el = $("midiMon"); if(el) el.textContent = msg; }
   function nice(id){ return id.replace("fx","").replace("DelayMix","Delay").replace("DelayTime","Time"); }
+  function padLoopOn(){ const el = $("padLoopMode"); return el && el.value === "on"; }
+  function loopStep(){ return buffer ? Math.max(.06, buffer.duration / 16) : .25; }
+  function nextGridTime(){ const step = loopStep(), now = ctx.currentTime, base = transportStart || now; return base + Math.ceil((now - base + .012) / step) * step; }
+
+  function ensurePadLoopControl(){
+    if($("padLoopMode")) return;
+    const velocity = $("velocityMode");
+    const box = velocity && velocity.closest ? velocity.closest(".knobs") : null;
+    if(!box) return;
+    const label = document.createElement("label");
+    label.className = "smallControl";
+    label.innerHTML = 'Pad Loop<select id="padLoopMode"><option value="off" selected>Off</option><option value="on">On - Quantized</option></select>';
+    box.appendChild(label);
+    $("padLoopMode").onchange = () => {
+      if(!padLoopOn()) clearLoopPads();
+      status(padLoopOn() ? "Pad Loop ON. Pads toggle on the shared quantized grid." : "Pad Loop OFF. Pads play one-shot.");
+    };
+  }
+
+  function applyDefaultSettings(){
+    const defaults = {vol:.9,pitch:0,attack:.005,release:.08,filter:12000,fxCutoff:12000,fxRes:.7,fxDelayMix:0,fxDelayTime:.25,fxReverb:0,fxCrush:0,fxPitch:0,fxGate:0};
+    Object.entries(defaults).forEach(([id,value]) => { const el = $(id); if(el){ el.value = value; el.dispatchEvent(new Event("input", {bubbles:true})); } });
+    if($("velocityMode")) $("velocityMode").value = "fixed";
+    if($("padLoopMode")) $("padLoopMode").value = "off";
+    if($("choke")) $("choke").value = "on";
+    if($("playMode")) $("playMode").value = "oneshot";
+    clearLoopPads();
+    status("Default settings restored. Velocity fixed. Pad Loop off.");
+  }
 
   function renderPads(){
     const box = $("pads"); box.innerHTML = "";
@@ -21,7 +51,7 @@
       const s = slices[i];
       const pad = document.createElement("button");
       pad.type = "button";
-      pad.className = "pad" + (s ? " loaded" : "");
+      pad.className = "pad" + (s ? " loaded" : "") + (loopPads.has(i) ? " active" : "");
       pad.dataset.pad = String(i);
       pad.innerHTML = `<b>${i+1}</b><span>${noteNames[i]} ${padNotes[i]} / ${qwerty[i].toUpperCase()}</span><small>${s ? s.start.toFixed(2)+"-"+s.end.toFixed(2)+"s" : "empty"}</small>`;
       pad.addEventListener("pointerdown", (e) => { e.preventDefault(); playSlice(i); });
@@ -33,7 +63,7 @@
     const pad = document.querySelector(`[data-pad='${i}']`);
     if(!pad) return;
     pad.classList.add("active");
-    setTimeout(() => pad.classList.remove("active"), 135);
+    setTimeout(() => { if(!loopPads.has(i)) pad.classList.remove("active"); }, 135);
   }
 
   function renderKeys(){
@@ -61,6 +91,7 @@
       const AC = window.AudioContext || window.webkitAudioContext;
       if(!AC){ status("AudioContext not supported in this browser."); return; }
       ctx = new AC();
+      transportStart = ctx.currentTime;
       master = ctx.createGain(); master.gain.value = Number($("vol").value);
       filter = ctx.createBiquadFilter(); filter.type = "lowpass"; filter.frequency.value = Number($("filter").value);
       analyser = ctx.createAnalyser(); analyser.fftSize = 512;
@@ -73,7 +104,7 @@
     status("Audio ready. Hit Demo or load a loop.");
   }
   async function ensureAudio(){ if(!ready) await startAudio(); }
-  function stopAll(){ active.forEach((s) => { try{s.stop();}catch(e){} }); active = []; }
+  function stopAll(){ active.forEach((s) => { try{s.stop();}catch(e){} }); active = []; clearLoopPads(); }
 
   function impulse(sec=1.25, dec=2.4){
     const len = Math.floor(ctx.sampleRate * sec);
@@ -135,7 +166,7 @@
     slices = [];
     const step = buffer.duration / 16;
     for(let i=0;i<16;i++) slices.push({start:i*step,end:(i+1)*step});
-    renderPads(); drawWave(); updateMap(); status("Grid chopped into 16 pads.");
+    clearLoopPads(false); renderPads(); drawWave(); updateMap(); status("Grid chopped into 16 pads.");
   }
   function smartChop(){
     if(!buffer){ status("Load a loop first, or hit Demo."); return; }
@@ -153,22 +184,22 @@
     while(chosen.length<16) chosen.push(chosen.length/16*buffer.duration);
     chosen.sort((a,b)=>a-b); slices = [];
     for(let i=0;i<16;i++) slices.push({start:chosen[i],end:Math.max(chosen[i]+.03, chosen[i+1] || buffer.duration)});
-    renderPads(); drawWave(); updateMap(); status("Smart chop complete.");
+    clearLoopPads(false); renderPads(); drawWave(); updateMap(); status("Smart chop complete.");
   }
-  async function loadFile(file){ await startAudio(); buffer = await ctx.decodeAudioData(await file.arrayBuffer()); fileName = file.name || "loaded-loop"; gridChop(); }
+  async function loadFile(file){ await startAudio(); buffer = await ctx.decodeAudioData(await file.arrayBuffer()); fileName = file.name || "loaded-loop"; transportStart = ctx.currentTime; gridChop(); }
   async function demo(){
     await startAudio();
     const bpm=130, dur=60/bpm*8, sr=ctx.sampleRate, b=ctx.createBuffer(1,Math.floor(sr*dur),sr), d=b.getChannelData(0), beat=60/bpm;
     function hit(t,type){ const st=Math.floor(t*sr), len=Math.floor(sr*(type==="h"?.05:type==="s"?.18:.28)); for(let i=0;i<len;i++){ const x=i/sr,n=st+i; if(n>=d.length)break; if(type==="k"){ const f=52+120*Math.exp(-x*20); d[n]+=Math.sin(2*Math.PI*f*x)*Math.exp(-x*9)*.85; } else if(type==="s") d[n]+=(Math.random()*2-1)*Math.exp(-x*18)*.5+Math.sin(2*Math.PI*190*x)*Math.exp(-x*16)*.35; else d[n]+=(Math.random()*2-1)*Math.exp(-x*60)*.18; }}
     for(let bar=0;bar<2;bar++){ const o=bar*4*beat; hit(o,"k"); hit(o+2*beat,"k"); hit(o+beat,"s"); hit(o+3*beat,"s"); for(let s=0;s<8;s++) hit(o+s*beat/2,"h"); }
     for(let i=0;i<d.length;i++) d[i] = Math.tanh(d[i]*1.6);
-    buffer = b; fileName = "built-in-demo-loop.wav"; gridChop();
+    buffer = b; fileName = "built-in-demo-loop.wav"; transportStart = ctx.currentTime; gridChop();
   }
-  async function playSlice(i, vel=1){
-    await ensureAudio();
-    if(!buffer || !slices[i]){ status("Load a loop first, or hit Demo."); return; }
-    if($("choke").value === "on") stopAll();
-    const now = ctx.currentTime, s = slices[i], dur = Math.max(.025, s.end-s.start), playDur = $("playMode").value === "gate" ? Math.min(dur,.42) : dur;
+
+  function triggerSliceAt(i, vel=1, when=null, forcedDur=null){
+    if(!buffer || !slices[i]) return false;
+    const now = when == null ? ctx.currentTime : when, s = slices[i], dur = Math.max(.025, s.end-s.start);
+    const playDur = forcedDur || ($("playMode").value === "gate" ? Math.min(dur,.42) : dur);
     const src = ctx.createBufferSource(), gain = ctx.createGain(), velocity = $("velocityMode").value === "fixed" ? 1 : vel;
     src.buffer = buffer; src.playbackRate.value = Math.pow(2, Number($("pitch").value)/12);
     gain.gain.setValueAtTime(0, now);
@@ -177,7 +208,47 @@
     gain.gain.linearRampToValueAtTime(.0001, now + playDur);
     src.connect(gain); gain.connect(filter); src.start(now, s.start, playDur); src.stop(now+playDur+.02);
     active.push(src); src.onended = () => active = active.filter((x) => x !== src); flashPad(i);
+    return true;
   }
+
+  async function playSlice(i, vel=1){
+    await ensureAudio();
+    if(!buffer || !slices[i]){ status("Load a loop first, or hit Demo."); return; }
+    if(padLoopOn()){ toggleLoopPad(i, vel); return; }
+    if($("choke").value === "on") stopAll();
+    triggerSliceAt(i, vel);
+  }
+
+  function toggleLoopPad(i, vel=1){
+    if(loopPads.has(i)){
+      loopPads.delete(i);
+      const pad = document.querySelector(`[data-pad='${i}']`); if(pad) pad.classList.remove("active");
+      status("Pad " + (i+1) + " loop queued OFF on the shared grid.");
+      if(loopPads.size === 0) stopLoopScheduler();
+      return;
+    }
+    loopPads.set(i, vel);
+    const pad = document.querySelector(`[data-pad='${i}']`); if(pad) pad.classList.add("active");
+    startLoopScheduler();
+    status("Pad " + (i+1) + " loop queued ON. Quantized with the other loop pads.");
+  }
+
+  function startLoopScheduler(){
+    if(loopScheduler) return;
+    nextLoopTime = nextGridTime();
+    loopScheduler = setInterval(scheduleLoopPads, 25);
+  }
+  function stopLoopScheduler(){ if(loopScheduler){ clearInterval(loopScheduler); loopScheduler = null; } }
+  function clearLoopPads(update=true){ loopPads.clear(); stopLoopScheduler(); if(update) renderPads(); }
+  function scheduleLoopPads(){
+    if(!ctx || !padLoopOn() || loopPads.size === 0){ clearLoopPads(); return; }
+    const step = loopStep();
+    while(nextLoopTime < ctx.currentTime + .16){
+      loopPads.forEach((vel, i) => triggerSliceAt(i, vel, nextLoopTime, Math.max(.025, Math.min(step*.96, slices[i] ? slices[i].end - slices[i].start : step))));
+      nextLoopTime += step;
+    }
+  }
+
   async function playTone(note, vel=.85){
     await ensureAudio();
     const now=ctx.currentTime, osc=ctx.createOscillator(), gain=ctx.createGain();
@@ -247,14 +318,14 @@
   }
 
   function updateMap(){
-    const map={file:fileName,pads:slices.map((s,i)=>({pad:i+1,note:noteNames[i],midi:padNotes[i],key:qwerty[i],start:+s.start.toFixed(4),end:+s.end.toFixed(4)})),fx:{k1:"cutoff",k2:"resonance",k3:"delay",k4:"delay time",k5:"reverb",k6:"crush",k7:"pitch",k8:"gate",cc:"21-28, 71-78, CC1, pitchbend, plus auto-captured unknown CCs"}};
+    const map={file:fileName,padLoop:padLoopOn()?"on-quantized":"off",pads:slices.map((s,i)=>({pad:i+1,note:noteNames[i],midi:padNotes[i],key:qwerty[i],start:+s.start.toFixed(4),end:+s.end.toFixed(4)})),fx:{k1:"cutoff",k2:"resonance",k3:"delay",k4:"delay time",k5:"reverb",k6:"crush",k7:"pitch",k8:"gate",cc:"21-28, 71-78, CC1, pitchbend, plus auto-captured unknown CCs"}};
     $("bankText").value = JSON.stringify(map,null,2);
   }
   function exportMap(){ const blob=new Blob([$("bankText").value],{type:"application/json"}), a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="the-choppa-pad-map.json"; a.click(); }
 
-  $("startBtn").onclick = startAudio; $("midiBtn").onclick = enableMIDI; $("panicBtn").onclick = () => { stopAll(); status("Stopped all active slices."); };
+  $("startBtn").onclick = startAudio; $("midiBtn").onclick = enableMIDI; $("panicBtn").onclick = () => { stopAll(); status("Stopped all active slices and pad loops."); };
   $("loopUpload").onchange = (e) => { if(e.target.files[0]) loadFile(e.target.files[0]); };
-  $("gridChopBtn").onclick = gridChop; $("transientChopBtn").onclick = smartChop; $("reverseBtn").onclick = () => { if(slices.length){ slices.reverse(); renderPads(); drawWave(); updateMap(); status("Pad order reversed."); } };
+  $("gridChopBtn").onclick = gridChop; $("transientChopBtn").onclick = smartChop; $("reverseBtn").onclick = () => { if(slices.length){ slices.reverse(); clearLoopPads(false); renderPads(); drawWave(); updateMap(); status("Pad order reversed."); } };
   $("demoBtn").onclick = demo; $("exportBtn").onclick = exportMap; $("visualMode").onchange = idleScope;
   $("vol").oninput = (e) => { if(master) master.gain.value = Number(e.target.value); };
   $("filter").oninput = (e) => setCut(e.target.value); $("pitch").oninput = (e) => setPitch(e.target.value); $("fxCutoff").oninput = (e) => setCut(e.target.value); $("fxPitch").oninput = (e) => setPitch(e.target.value);
@@ -265,5 +336,8 @@
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred=e; $("installBar").classList.add("show"); });
   $("installBtn").onclick = async () => { if(!deferred)return; deferred.prompt(); await deferred.userChoice.catch(()=>null); deferred=null; $("installBar").classList.remove("show"); };
   if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));
+  ensurePadLoopControl();
+  const defaultBtn = $("defaultSettingsBtn"); if(defaultBtn) defaultBtn.addEventListener("click", applyDefaultSettings);
+  if($("velocityMode")) $("velocityMode").value = "fixed";
   renderPads(); renderKeys(); updateMap(); idleScope();
 })();
