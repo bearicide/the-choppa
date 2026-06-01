@@ -1,12 +1,22 @@
-THE CHOPPA BY MATTBEAR - PWA PACKAGE
+MATTBEAR - The Choppa Package
 
-Upload this whole folder to GitHub Pages or any HTTPS web host.
-Open index.html in Chrome/Edge on Android, then use Install App or Add to Home screen.
+Drop these files into the root of the GitHub Pages repo/folder for The Choppa:
 
-Important: PWA install/service worker features require HTTPS or localhost. They will not fully work from a local file:// open.
+- index.html
+- manifest.json
+- service-worker.js
+- icon-192.png
+- icon-512.png
 
-Files:
-- index.html: app
-- manifest.json: install/app metadata
-- service-worker.js: offline cache and installability
-- icon-192.png / icon-512.png: home screen icons
+Live target:
+https://bearicide.github.io/the-choppa/
+
+Notes:
+- This package promotes the visualizer/oscilloscope build as the default app.
+- Buttons are tightened with shorter labels, bolder text, stronger fill, and mobile wrapping.
+- Launchkey Mini pads use the mapped 16-pad layout.
+- FX knobs listen for CC 21-28 and fallback CC 71-78.
+- Service worker cache is bumped to: the-choppa-pwa-v2-visualizer
+
+After upload/push:
+Hard-refresh the live page once if an old service worker is still showing the previous build.
