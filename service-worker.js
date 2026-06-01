@@ -1,7 +1,8 @@
-const CACHE_NAME = "the-choppa-pwa-v2-visualizer";
+const CACHE_NAME = "the-choppa-pwa-v3-midi-autofix";
 const APP_FILES = [
   "./",
   "./index.html",
+  "./app.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
