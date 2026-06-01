@@ -1,0 +1,16 @@
+QA CHECK
+
+File: index.html
+Size: 26,474 bytes
+IDs found: 36
+Duplicate IDs: none
+JavaScript syntax: PASS
+
+Generated package contents:
+- README.txt
+- docs/Launchkey MIDI Mapping Fix.txt
+- icon-192.png
+- icon-512.png
+- index.html
+- manifest.json
+- service-worker.js
