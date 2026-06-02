@@ -101,7 +101,8 @@
     }
     if(ctx.state !== "running") await ctx.resume();
     ready = true;
-    status("Audio ready. Hit Demo or load a loop.");
+    if(!buffer) buildDemoLoop("autoload");
+    status(buffer ? "Audio ready. Built-in kit autoloaded. Hit pads, MIDI, or load your own loop." : "Audio ready. Hit Demo or load a loop.");
   }
   async function ensureAudio(){ if(!ready) await startAudio(); }
   function stopAll(){ active.forEach((s) => { try{s.stop();}catch(e){} }); active = []; clearLoopPads(); }
@@ -187,13 +188,19 @@
     clearLoopPads(false); renderPads(); drawWave(); updateMap(); status("Smart chop complete.");
   }
   async function loadFile(file){ await startAudio(); buffer = await ctx.decodeAudioData(await file.arrayBuffer()); fileName = file.name || "loaded-loop"; transportStart = ctx.currentTime; gridChop(); }
-  async function demo(){
-    await startAudio();
+  function buildDemoLoop(source="demo"){
+    if(!ctx) return;
     const bpm=130, dur=60/bpm*8, sr=ctx.sampleRate, b=ctx.createBuffer(1,Math.floor(sr*dur),sr), d=b.getChannelData(0), beat=60/bpm;
     function hit(t,type){ const st=Math.floor(t*sr), len=Math.floor(sr*(type==="h"?.05:type==="s"?.18:.28)); for(let i=0;i<len;i++){ const x=i/sr,n=st+i; if(n>=d.length)break; if(type==="k"){ const f=52+120*Math.exp(-x*20); d[n]+=Math.sin(2*Math.PI*f*x)*Math.exp(-x*9)*.85; } else if(type==="s") d[n]+=(Math.random()*2-1)*Math.exp(-x*18)*.5+Math.sin(2*Math.PI*190*x)*Math.exp(-x*16)*.35; else d[n]+=(Math.random()*2-1)*Math.exp(-x*60)*.18; }}
     for(let bar=0;bar<2;bar++){ const o=bar*4*beat; hit(o,"k"); hit(o+2*beat,"k"); hit(o+beat,"s"); hit(o+3*beat,"s"); for(let s=0;s<8;s++) hit(o+s*beat/2,"h"); }
     for(let i=0;i<d.length;i++) d[i] = Math.tanh(d[i]*1.6);
-    buffer = b; fileName = "built-in-demo-loop.wav"; transportStart = ctx.currentTime; gridChop();
+    buffer = b; fileName = source === "autoload" ? "autoload-built-in-kit.wav" : "built-in-demo-loop.wav"; transportStart = ctx.currentTime; gridChop();
+    if(source === "autoload") status("Built-in kit autoloaded. Hit any pad after Start/MIDI.");
+  }
+  async function demo(){
+    await startAudio();
+    buildDemoLoop("demo");
+    status("Demo kit regenerated and chopped into 16 pads.");
   }
 
   function triggerSliceAt(i, vel=1, when=null, forcedDur=null){
@@ -302,7 +309,7 @@
     if(!navigator.requestMIDIAccess){ status("MIDI not supported here. Use Chrome/Edge desktop."); midiMon("MIDI unavailable: browser does not expose Web MIDI."); return; }
     try{
       const midi = await navigator.requestMIDIAccess({sysex:false});
-      const bind = () => { let names=[]; for(const input of midi.inputs.values()){ input.onmidimessage=onMIDI; names.push(input.name || "MIDI input"); } const msg = names.length ? "MIDI enabled: " + names.join(", ") : "MIDI enabled, but no input detected. Replug Launchkey, then press MIDI again."; status(msg); midiMon(msg); };
+      const bind = () => { let names=[]; for(const input of midi.inputs.values()){ input.onmidimessage=onMIDI; names.push(input.name || "MIDI input"); } const msg = names.length ? "MIDI enabled: " + names.join(", ") + ". Built-in kit is loaded." : "MIDI enabled, but no input detected. Replug Launchkey, then press MIDI again."; status(msg); midiMon(msg); };
       bind(); midi.onstatechange = bind;
     }catch(e){ status("MIDI permission failed or was denied."); midiMon("MIDI error: " + (e && e.message ? e.message : e)); }
   }
@@ -340,4 +347,5 @@
   const defaultBtn = $("defaultSettingsBtn"); if(defaultBtn) defaultBtn.addEventListener("click", applyDefaultSettings);
   if($("velocityMode")) $("velocityMode").value = "fixed";
   renderPads(); renderKeys(); updateMap(); idleScope();
+  status("Ready. Press Start or MIDI and a built-in kit autoloads before you hit the pads.");
 })();
