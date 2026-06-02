@@ -7,60 +7,81 @@
   const keyLetters = ["Z","X","C","V","B","N","M",",",".","/"];
   const knobTargets = ["fxCutoff","fxRes","fxDelayMix","fxDelayTime","fxReverb","fxCrush","fxPitch","fxGate"];
   const fixedCCMap = {1:"fxGate",21:"fxCutoff",22:"fxRes",23:"fxDelayMix",24:"fxDelayTime",25:"fxReverb",26:"fxCrush",27:"fxPitch",28:"fxGate",71:"fxCutoff",72:"fxRes",73:"fxDelayMix",74:"fxDelayTime",75:"fxReverb",76:"fxCrush",77:"fxPitch",78:"fxGate"};
+  const padModes = Array(16).fill("loop");
   let ctx, master, filter, analyser, fx, buffer, gateTimer;
   let slices = [], active = [], fileName = "none", ready = false;
   let autoCCMap = {}, autoCCNext = 0, autoPadMap = {}, autoPadNext = 0;
   let loopPads = new Map(), loopScheduler = null, nextLoopTime = 0, transportStart = 0;
+  let gateSources = new Map();
 
   function status(msg){ const el = $("status"); if(el) el.textContent = msg; }
   function midiMon(msg){ const el = $("midiMon"); if(el) el.textContent = msg; }
   function nice(id){ return id.replace("fx","").replace("DelayMix","Delay").replace("DelayTime","Time"); }
-  function padLoopOn(){ const el = $("padLoopMode"); return el && el.value === "on"; }
   function loopStep(){ return buffer ? Math.max(.06, buffer.duration / 16) : .25; }
   function nextGridTime(){ const step = loopStep(), now = ctx.currentTime, base = transportStart || now; return base + Math.ceil((now - base + .012) / step) * step; }
 
-  function ensurePadLoopControl(){
-    if($("padLoopMode")) return;
-    const velocity = $("velocityMode");
-    const box = velocity && velocity.closest ? velocity.closest(".knobs") : null;
-    if(!box) return;
-    const label = document.createElement("label");
-    label.className = "smallControl";
-    label.innerHTML = 'Pad Loop<select id="padLoopMode"><option value="off">Off - One Shot</option><option value="on" selected>On - Quantized</option></select>';
-    box.appendChild(label);
-    $("padLoopMode").onchange = () => {
-      if(!padLoopOn()) clearLoopPads();
-      status(padLoopOn() ? "Pad Loop ON. Pads toggle loops on the shared quantized grid." : "Pad Loop OFF. Pads play one-shot.");
-    };
+  function setPadMode(i, mode){
+    padModes[i] = mode;
+    if(mode !== "loop" && loopPads.has(i)) loopPads.delete(i);
+    if(mode !== "gate") stopGatePad(i);
+    renderPads(); renderSliceModes(); updateMap();
+    status("Pad " + (i+1) + " mode: " + mode.toUpperCase() + ".");
   }
-
-  function armLoopMode(msg=false){
-    const el = $("padLoopMode");
-    if(el) el.value = "on";
-    if(msg) status("Pad Loop armed. Tap a pad once to loop it, tap again to stop it.");
+  function nextPadMode(i){
+    const order = ["loop","oneshot","gate"];
+    setPadMode(i, order[(order.indexOf(padModes[i]) + 1) % order.length]);
+  }
+  function ensureSliceModePanel(){
+    if($("sliceModes")) return;
+    const pads = $("pads"); if(!pads || !pads.parentNode) return;
+    const panel = document.createElement("div");
+    panel.id = "sliceModes";
+    panel.style.cssText = "display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:10px";
+    pads.insertAdjacentElement("afterend", panel);
+    renderSliceModes();
+  }
+  function renderSliceModes(){
+    const panel = $("sliceModes"); if(!panel) return;
+    panel.innerHTML = "";
+    for(let i=0;i<16;i++){
+      const label = document.createElement("label");
+      label.className = "smallControl";
+      label.style.margin = "0";
+      label.innerHTML = `Pad ${i+1}<select data-mode-pad="${i}"><option value="loop">Loop</option><option value="oneshot">One-shot</option><option value="gate">Gate</option></select>`;
+      const sel = label.querySelector("select");
+      sel.value = padModes[i];
+      sel.onchange = () => setPadMode(i, sel.value);
+      panel.appendChild(label);
+    }
   }
 
   function applyDefaultSettings(){
     const defaults = {vol:.9,pitch:0,attack:.005,release:.08,filter:12000,fxCutoff:12000,fxRes:.7,fxDelayMix:0,fxDelayTime:.25,fxReverb:0,fxCrush:0,fxPitch:0,fxGate:0};
     Object.entries(defaults).forEach(([id,value]) => { const el = $(id); if(el){ el.value = value; el.dispatchEvent(new Event("input", {bubbles:true})); } });
     if($("velocityMode")) $("velocityMode").value = "fixed";
-    armLoopMode(false);
     if($("choke")) $("choke").value = "on";
     if($("playMode")) $("playMode").value = "oneshot";
-    clearLoopPads();
-    status("Defaults restored. Pad Loop ON. Tap a pad to start/stop its loop.");
+    for(let i=0;i<16;i++) padModes[i] = "loop";
+    clearLoopPads(); stopAllGates();
+    renderPads(); renderSliceModes(); updateMap();
+    status("Defaults restored. Every pad has its own mode; all pads default to LOOP.");
   }
 
   function renderPads(){
-    const box = $("pads"); box.innerHTML = "";
+    const box = $("pads"); if(!box) return;
+    box.innerHTML = "";
     for(let i=0;i<16;i++){
       const s = slices[i];
       const pad = document.createElement("button");
       pad.type = "button";
-      pad.className = "pad" + (s ? " loaded" : "") + (loopPads.has(i) ? " active" : "");
+      pad.className = "pad" + (s ? " loaded" : "") + (loopPads.has(i) || gateSources.has(i) ? " active" : "");
       pad.dataset.pad = String(i);
-      pad.innerHTML = `<b>${i+1}</b><span>${noteNames[i]} ${padNotes[i]} / ${qwerty[i].toUpperCase()}</span><small>${s ? s.start.toFixed(2)+"-"+s.end.toFixed(2)+"s" : "empty"}</small>`;
-      pad.addEventListener("pointerdown", (e) => { e.preventDefault(); playSlice(i); });
+      pad.dataset.mode = padModes[i];
+      pad.title = "Click to play/toggle. Right-click or double-click to change mode.";
+      pad.innerHTML = `<b>${i+1}</b><span>${noteNames[i]} ${padNotes[i]} / ${qwerty[i].toUpperCase()}</span><small>${padModes[i].toUpperCase()} • ${s ? s.start.toFixed(2)+"-"+s.end.toFixed(2)+"s" : "empty"}</small>`;
+      pad.addEventListener("pointerdown", (e) => { e.preventDefault(); if(e.shiftKey || e.altKey || e.ctrlKey){ nextPadMode(i); return; } playSlice(i); });
+      pad.addEventListener("dblclick", (e) => { e.preventDefault(); nextPadMode(i); });
+      pad.addEventListener("contextmenu", (e) => { e.preventDefault(); nextPadMode(i); });
       box.appendChild(pad);
     }
   }
@@ -69,11 +90,12 @@
     const pad = document.querySelector(`[data-pad='${i}']`);
     if(!pad) return;
     pad.classList.add("active");
-    setTimeout(() => { if(!loopPads.has(i)) pad.classList.remove("active"); }, 135);
+    setTimeout(() => { if(!loopPads.has(i) && !gateSources.has(i)) pad.classList.remove("active"); }, 135);
   }
 
   function renderKeys(){
-    const box = $("keyboard"); box.innerHTML = "";
+    const box = $("keyboard"); if(!box) return;
+    box.innerHTML = "";
     keys.forEach((note, i) => {
       const k = document.createElement("button");
       k.type = "button";
@@ -108,19 +130,16 @@
     if(ctx.state !== "running") await ctx.resume();
     ready = true;
     if(!buffer) buildDemoLoop("autoload");
-    armLoopMode(false);
-    status(buffer ? "Audio ready. Built-in kit loaded. Pad Loop is ON: tap pads/MIDI to start or stop loops." : "Audio ready. Hit Demo or load a loop.");
+    status("Audio ready. Per-pad modes active: LOOP / ONE-SHOT / GATE.");
   }
   async function ensureAudio(){ if(!ready) await startAudio(); }
-  function stopAll(){ active.forEach((s) => { try{s.stop();}catch(e){} }); active = []; clearLoopPads(); }
+  function stopOneShots(){ active.forEach((s) => { try{s.stop();}catch(e){} }); active = []; }
+  function stopAll(){ stopOneShots(); clearLoopPads(); stopAllGates(); }
 
   function impulse(sec=1.25, dec=2.4){
     const len = Math.floor(ctx.sampleRate * sec);
     const b = ctx.createBuffer(2, len, ctx.sampleRate);
-    for(let ch=0; ch<2; ch++){
-      const d = b.getChannelData(ch);
-      for(let i=0;i<len;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/len, dec);
-    }
+    for(let ch=0; ch<2; ch++){ const d = b.getChannelData(ch); for(let i=0;i<len;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/len, dec); }
     return b;
   }
   function crushCurve(amount=0){
@@ -151,10 +170,7 @@
     const amount = Number(v);
     fx.gateSend.gain.setTargetAtTime(amount*.8, ctx.currentTime, .02);
     if(gateTimer){ clearInterval(gateTimer); gateTimer = null; fx.gate.gain.setTargetAtTime(1, ctx.currentTime, .01); }
-    if(amount > .01){
-      let open = true;
-      gateTimer = setInterval(() => { open = !open; fx.gate.gain.setTargetAtTime(open ? 1 : Math.max(.02, 1-amount), ctx.currentTime, .01); }, Math.max(45, 170-amount*120));
-    }
+    if(amount > .01){ let open = true; gateTimer = setInterval(() => { open = !open; fx.gate.gain.setTargetAtTime(open ? 1 : Math.max(.02, 1-amount), ctx.currentTime, .01); }, Math.max(45, 170-amount*120)); }
   }
   function refreshFX(){
     if(!ctx) return;
@@ -174,25 +190,20 @@
     slices = [];
     const step = buffer.duration / 16;
     for(let i=0;i<16;i++) slices.push({start:i*step,end:(i+1)*step});
-    clearLoopPads(false); renderPads(); drawWave(); updateMap(); armLoopMode(false); status("Grid chopped into 16 pads. Pad Loop ON: tap a pad to loop it.");
+    clearLoopPads(false); stopAllGates(); renderPads(); drawWave(); updateMap(); status("Grid chopped. Each pad has its own mode.");
   }
   function smartChop(){
     if(!buffer){ status("Load a loop first, or hit Demo."); return; }
     const data = buffer.getChannelData(0), sr = buffer.sampleRate, win = Math.floor(sr*.012), hop = Math.floor(sr*.006), hits = [];
     let prev = 0;
-    for(let i=0;i<data.length-win;i+=hop){
-      let e = 0; for(let j=0;j<win;j++){ const v = data[i+j]; e += v*v; }
-      e = Math.sqrt(e/win); const rise = e - prev;
-      if(rise > .035 && e > .045) hits.push({time:i/sr,score:rise+e*.25});
-      prev = prev*.92 + e*.08;
-    }
+    for(let i=0;i<data.length-win;i+=hop){ let e = 0; for(let j=0;j<win;j++){ const v = data[i+j]; e += v*v; } e = Math.sqrt(e/win); const rise = e - prev; if(rise > .035 && e > .045) hits.push({time:i/sr,score:rise+e*.25}); prev = prev*.92 + e*.08; }
     hits.sort((a,b) => b.score-a.score);
     const chosen = [0], gap = buffer.duration / 28;
     for(const h of hits){ if(h.time>.01 && chosen.every((t)=>Math.abs(t-h.time)>gap)) chosen.push(h.time); if(chosen.length>=16) break; }
     while(chosen.length<16) chosen.push(chosen.length/16*buffer.duration);
     chosen.sort((a,b)=>a-b); slices = [];
     for(let i=0;i<16;i++) slices.push({start:chosen[i],end:Math.max(chosen[i]+.03, chosen[i+1] || buffer.duration)});
-    clearLoopPads(false); renderPads(); drawWave(); updateMap(); armLoopMode(false); status("Smart chop complete. Pad Loop ON: tap a pad to loop it.");
+    clearLoopPads(false); stopAllGates(); renderPads(); drawWave(); updateMap(); status("Smart chop complete. Each pad has its own mode.");
   }
   async function loadFile(file){ await startAudio(); buffer = await ctx.decodeAudioData(await file.arrayBuffer()); fileName = file.name || "loaded-loop"; transportStart = ctx.currentTime; gridChop(); }
   function buildDemoLoop(source="demo"){
@@ -202,18 +213,14 @@
     for(let bar=0;bar<2;bar++){ const o=bar*4*beat; hit(o,"k"); hit(o+2*beat,"k"); hit(o+beat,"s"); hit(o+3*beat,"s"); for(let s=0;s<8;s++) hit(o+s*beat/2,"h"); }
     for(let i=0;i<d.length;i++) d[i] = Math.tanh(d[i]*1.6);
     buffer = b; fileName = source === "autoload" ? "autoload-built-in-kit.wav" : "built-in-demo-loop.wav"; transportStart = ctx.currentTime; gridChop();
-    if(source === "autoload") status("Built-in kit autoloaded. Pad Loop ON. Hit any pad once to loop, again to stop.");
+    if(source === "autoload") status("Built-in kit loaded. Every pad can be LOOP / ONE-SHOT / GATE.");
   }
-  async function demo(){
-    await startAudio();
-    buildDemoLoop("demo");
-    status("Demo kit regenerated. Pad Loop ON: tap pads to start/stop loops.");
-  }
+  async function demo(){ await startAudio(); buildDemoLoop("demo"); status("Demo kit regenerated. Per-pad modes active."); }
 
-  function triggerSliceAt(i, vel=1, when=null, forcedDur=null){
-    if(!buffer || !slices[i]) return false;
+  function triggerSliceAt(i, vel=1, when=null, forcedDur=null, trackAs="active"){
+    if(!buffer || !slices[i]) return null;
     const now = when == null ? ctx.currentTime : when, s = slices[i], dur = Math.max(.025, s.end-s.start);
-    const playDur = forcedDur || ($("playMode").value === "gate" ? Math.min(dur,.42) : dur);
+    const playDur = forcedDur || (padModes[i] === "gate" ? Math.min(dur,.42) : dur);
     const src = ctx.createBufferSource(), gain = ctx.createGain(), velocity = $("velocityMode").value === "fixed" ? 1 : vel;
     src.buffer = buffer; src.playbackRate.value = Math.pow(2, Number($("pitch").value)/12);
     gain.gain.setValueAtTime(0, now);
@@ -221,19 +228,25 @@
     gain.gain.setValueAtTime(Math.max(.05, velocity), now + Math.max(.02, playDur - Number($("release").value)));
     gain.gain.linearRampToValueAtTime(.0001, now + playDur);
     src.connect(gain); gain.connect(filter); src.start(now, s.start, playDur); src.stop(now+playDur+.02);
-    active.push(src); src.onended = () => active = active.filter((x) => x !== src); flashPad(i);
-    return true;
+    if(trackAs === "active") active.push(src);
+    src.onended = () => { active = active.filter((x) => x !== src); if(gateSources.get(i) === src) gateSources.delete(i); flashPad(i); };
+    flashPad(i);
+    return src;
   }
 
   async function playSlice(i, vel=1){
     await ensureAudio();
     if(!buffer || !slices[i]){ status("Load a loop first, or hit Demo."); return; }
-    if(padLoopOn()){ toggleLoopPad(i, vel); return; }
-    if($("choke").value === "on") stopAll();
-    triggerSliceAt(i, vel);
+    const mode = padModes[i];
+    if(mode === "loop"){ toggleLoopPad(i, vel); return; }
+    if(mode === "gate"){ startGatePad(i, vel, false); return; }
+    if($("choke").value === "on") stopOneShots();
+    triggerSliceAt(i, vel, null, null, "active");
+    status("Pad " + (i+1) + " one-shot." );
   }
 
   function toggleLoopPad(i, vel=1){
+    stopGatePad(i);
     if(loopPads.has(i)){
       loopPads.delete(i);
       const pad = document.querySelector(`[data-pad='${i}']`); if(pad) pad.classList.remove("active");
@@ -244,21 +257,29 @@
     loopPads.set(i, vel);
     const pad = document.querySelector(`[data-pad='${i}']`); if(pad) pad.classList.add("active");
     startLoopScheduler();
-    status("Pad " + (i+1) + " loop ON. Tap it again to stop.");
+    status("Pad " + (i+1) + " loop ON. Other loops stay alive.");
   }
-
-  function startLoopScheduler(){
-    if(loopScheduler) return;
-    nextLoopTime = nextGridTime();
-    loopScheduler = setInterval(scheduleLoopPads, 25);
+  function startGatePad(i, vel=1, held=true){
+    stopGatePad(i);
+    const src = triggerSliceAt(i, vel, null, held ? Math.max(.08, Math.min((slices[i]?.end || 0) - (slices[i]?.start || 0), 8)) : .42, "gate");
+    if(src) gateSources.set(i, src);
+    status("Pad " + (i+1) + " gate " + (held ? "held" : "hit") + ".");
+    renderPads();
   }
+  function stopGatePad(i){
+    const src = gateSources.get(i);
+    if(src){ try{ src.stop(); }catch(e){} gateSources.delete(i); }
+    renderPads();
+  }
+  function stopAllGates(){ [...gateSources.keys()].forEach(stopGatePad); gateSources.clear(); }
+  function startLoopScheduler(){ if(loopScheduler) return; nextLoopTime = nextGridTime(); loopScheduler = setInterval(scheduleLoopPads, 25); }
   function stopLoopScheduler(){ if(loopScheduler){ clearInterval(loopScheduler); loopScheduler = null; } }
   function clearLoopPads(update=true){ loopPads.clear(); stopLoopScheduler(); if(update) renderPads(); }
   function scheduleLoopPads(){
-    if(!ctx || !padLoopOn() || loopPads.size === 0){ clearLoopPads(); return; }
+    if(!ctx || loopPads.size === 0){ stopLoopScheduler(); return; }
     const step = loopStep();
     while(nextLoopTime < ctx.currentTime + .16){
-      loopPads.forEach((vel, i) => triggerSliceAt(i, vel, nextLoopTime, Math.max(.025, Math.min(step*.96, slices[i] ? slices[i].end - slices[i].start : step))));
+      loopPads.forEach((vel, i) => triggerSliceAt(i, vel, nextLoopTime, Math.max(.025, Math.min(step*.96, slices[i] ? slices[i].end - slices[i].start : step)), "loop"));
       nextLoopTime += step;
     }
   }
@@ -313,11 +334,10 @@
   }
   async function enableMIDI(){
     await startAudio();
-    armLoopMode(false);
     if(!navigator.requestMIDIAccess){ status("MIDI not supported here. Use Chrome/Edge desktop."); midiMon("MIDI unavailable: browser does not expose Web MIDI."); return; }
     try{
       const midi = await navigator.requestMIDIAccess({sysex:false});
-      const bind = () => { let names=[]; for(const input of midi.inputs.values()){ input.onmidimessage=onMIDI; names.push(input.name || "MIDI input"); } const msg = names.length ? "MIDI enabled: " + names.join(", ") + ". Pad Loop ON." : "MIDI enabled, but no input detected. Replug Launchkey, then press MIDI again."; status(msg); midiMon(msg); };
+      const bind = () => { let names=[]; for(const input of midi.inputs.values()){ input.onmidimessage=onMIDI; names.push(input.name || "MIDI input"); } const msg = names.length ? "MIDI enabled: " + names.join(", ") + ". Per-pad modes active." : "MIDI enabled, but no input detected. Replug Launchkey, then press MIDI again."; status(msg); midiMon(msg); };
       bind(); midi.onstatechange = bind;
     }catch(e){ status("MIDI permission failed or was denied."); midiMon("MIDI error: " + (e && e.message ? e.message : e)); }
   }
@@ -326,21 +346,21 @@
     midiMon("MIDI raw ch"+ch+" status "+type+" data "+data.join(","));
     if(type === 176){ handleCC(d1,d2); return; }
     if(type === 224){ const bend=((d2<<7)|d1)-8192, semi=Math.max(-12,Math.min(12,Math.round(bend/8192*12))); setPitch(semi); midiMon("Pitch bend → " + semi + " semitones"); return; }
-    if(type === 144 && d2 > 0){ const idx=padIndexFromNote(d1); playSlice(idx, d2/127); return; }
-    if(type === 128 || (type === 144 && d2 === 0)) return;
+    if(type === 144 && d2 > 0){ const idx=padIndexFromNote(d1); if(padModes[idx] === "gate") startGatePad(idx, d2/127, true); else playSlice(idx, d2/127); return; }
+    if(type === 128 || (type === 144 && d2 === 0)){ const idx=padIndexFromNote(d1); if(padModes[idx] === "gate") stopGatePad(idx); return; }
     if(type === 160){ const idx=padIndexFromNote(d1); flashPad(idx); return; }
     if(d1 || d2) status("MIDI seen but unmapped: status " + type + " data " + data.join(","));
   }
 
   function updateMap(){
-    const map={file:fileName,padLoop:padLoopOn()?"on-quantized":"off",pads:slices.map((s,i)=>({pad:i+1,note:noteNames[i],midi:padNotes[i],key:qwerty[i],start:+s.start.toFixed(4),end:+s.end.toFixed(4)})),fx:{k1:"cutoff",k2:"resonance",k3:"delay",k4:"delay time",k5:"reverb",k6:"crush",k7:"pitch",k8:"gate",cc:"21-28, 71-78, CC1, pitchbend, plus auto-captured unknown CCs"}};
+    const map={file:fileName,pads:slices.map((s,i)=>({pad:i+1,mode:padModes[i],note:noteNames[i],midi:padNotes[i],key:qwerty[i],start:+s.start.toFixed(4),end:+s.end.toFixed(4)})),fx:{k1:"cutoff",k2:"resonance",k3:"delay",k4:"delay time",k5:"reverb",k6:"crush",k7:"pitch",k8:"gate",cc:"21-28, 71-78, CC1, pitchbend, plus auto-captured unknown CCs"}};
     $("bankText").value = JSON.stringify(map,null,2);
   }
   function exportMap(){ const blob=new Blob([$("bankText").value],{type:"application/json"}), a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="the-choppa-pad-map.json"; a.click(); }
 
-  $("startBtn").onclick = startAudio; $("midiBtn").onclick = enableMIDI; $("panicBtn").onclick = () => { stopAll(); status("Stopped all active slices and pad loops."); };
+  $("startBtn").onclick = startAudio; $("midiBtn").onclick = enableMIDI; $("panicBtn").onclick = () => { stopAll(); status("Stopped all one-shots, gates, and loops."); };
   $("loopUpload").onchange = (e) => { if(e.target.files[0]) loadFile(e.target.files[0]); };
-  $("gridChopBtn").onclick = gridChop; $("transientChopBtn").onclick = smartChop; $("reverseBtn").onclick = () => { if(slices.length){ slices.reverse(); clearLoopPads(false); renderPads(); drawWave(); updateMap(); status("Pad order reversed."); } };
+  $("gridChopBtn").onclick = gridChop; $("transientChopBtn").onclick = smartChop; $("reverseBtn").onclick = () => { if(slices.length){ slices.reverse(); clearLoopPads(false); stopAllGates(); renderPads(); drawWave(); updateMap(); status("Pad order reversed."); } };
   $("demoBtn").onclick = demo; $("exportBtn").onclick = exportMap; $("visualMode").onchange = idleScope;
   $("vol").oninput = (e) => { if(master) master.gain.value = Number(e.target.value); };
   $("filter").oninput = (e) => setCut(e.target.value); $("pitch").oninput = (e) => setPitch(e.target.value); $("fxCutoff").oninput = (e) => setCut(e.target.value); $("fxPitch").oninput = (e) => setPitch(e.target.value);
@@ -351,10 +371,9 @@
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred=e; $("installBar").classList.add("show"); });
   $("installBtn").onclick = async () => { if(!deferred)return; deferred.prompt(); await deferred.userChoice.catch(()=>null); deferred=null; $("installBar").classList.remove("show"); };
   if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));
-  ensurePadLoopControl();
-  armLoopMode(false);
+  ensureSliceModePanel();
   const defaultBtn = $("defaultSettingsBtn"); if(defaultBtn) defaultBtn.addEventListener("click", applyDefaultSettings);
   if($("velocityMode")) $("velocityMode").value = "fixed";
-  renderPads(); renderKeys(); updateMap(); idleScope();
-  status("Ready. Press Start or MIDI. Pad Loop is ON by default.");
+  renderPads(); renderKeys(); renderSliceModes(); updateMap(); idleScope();
+  status("Ready. Per-pad modes: LOOP / ONE-SHOT / GATE. Right-click or double-click a pad to cycle mode.");
 })();
