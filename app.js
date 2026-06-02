@@ -26,23 +26,29 @@
     if(!box) return;
     const label = document.createElement("label");
     label.className = "smallControl";
-    label.innerHTML = 'Pad Loop<select id="padLoopMode"><option value="off" selected>Off</option><option value="on">On - Quantized</option></select>';
+    label.innerHTML = 'Pad Loop<select id="padLoopMode"><option value="off">Off - One Shot</option><option value="on" selected>On - Quantized</option></select>';
     box.appendChild(label);
     $("padLoopMode").onchange = () => {
       if(!padLoopOn()) clearLoopPads();
-      status(padLoopOn() ? "Pad Loop ON. Pads toggle on the shared quantized grid." : "Pad Loop OFF. Pads play one-shot.");
+      status(padLoopOn() ? "Pad Loop ON. Pads toggle loops on the shared quantized grid." : "Pad Loop OFF. Pads play one-shot.");
     };
+  }
+
+  function armLoopMode(msg=false){
+    const el = $("padLoopMode");
+    if(el) el.value = "on";
+    if(msg) status("Pad Loop armed. Tap a pad once to loop it, tap again to stop it.");
   }
 
   function applyDefaultSettings(){
     const defaults = {vol:.9,pitch:0,attack:.005,release:.08,filter:12000,fxCutoff:12000,fxRes:.7,fxDelayMix:0,fxDelayTime:.25,fxReverb:0,fxCrush:0,fxPitch:0,fxGate:0};
     Object.entries(defaults).forEach(([id,value]) => { const el = $(id); if(el){ el.value = value; el.dispatchEvent(new Event("input", {bubbles:true})); } });
     if($("velocityMode")) $("velocityMode").value = "fixed";
-    if($("padLoopMode")) $("padLoopMode").value = "off";
+    armLoopMode(false);
     if($("choke")) $("choke").value = "on";
     if($("playMode")) $("playMode").value = "oneshot";
     clearLoopPads();
-    status("Default settings restored. Velocity fixed. Pad Loop off.");
+    status("Defaults restored. Pad Loop ON. Tap a pad to start/stop its loop.");
   }
 
   function renderPads(){
@@ -102,7 +108,8 @@
     if(ctx.state !== "running") await ctx.resume();
     ready = true;
     if(!buffer) buildDemoLoop("autoload");
-    status(buffer ? "Audio ready. Built-in kit autoloaded. Hit pads, MIDI, or load your own loop." : "Audio ready. Hit Demo or load a loop.");
+    armLoopMode(false);
+    status(buffer ? "Audio ready. Built-in kit loaded. Pad Loop is ON: tap pads/MIDI to start or stop loops." : "Audio ready. Hit Demo or load a loop.");
   }
   async function ensureAudio(){ if(!ready) await startAudio(); }
   function stopAll(){ active.forEach((s) => { try{s.stop();}catch(e){} }); active = []; clearLoopPads(); }
@@ -167,7 +174,7 @@
     slices = [];
     const step = buffer.duration / 16;
     for(let i=0;i<16;i++) slices.push({start:i*step,end:(i+1)*step});
-    clearLoopPads(false); renderPads(); drawWave(); updateMap(); status("Grid chopped into 16 pads.");
+    clearLoopPads(false); renderPads(); drawWave(); updateMap(); armLoopMode(false); status("Grid chopped into 16 pads. Pad Loop ON: tap a pad to loop it.");
   }
   function smartChop(){
     if(!buffer){ status("Load a loop first, or hit Demo."); return; }
@@ -185,7 +192,7 @@
     while(chosen.length<16) chosen.push(chosen.length/16*buffer.duration);
     chosen.sort((a,b)=>a-b); slices = [];
     for(let i=0;i<16;i++) slices.push({start:chosen[i],end:Math.max(chosen[i]+.03, chosen[i+1] || buffer.duration)});
-    clearLoopPads(false); renderPads(); drawWave(); updateMap(); status("Smart chop complete.");
+    clearLoopPads(false); renderPads(); drawWave(); updateMap(); armLoopMode(false); status("Smart chop complete. Pad Loop ON: tap a pad to loop it.");
   }
   async function loadFile(file){ await startAudio(); buffer = await ctx.decodeAudioData(await file.arrayBuffer()); fileName = file.name || "loaded-loop"; transportStart = ctx.currentTime; gridChop(); }
   function buildDemoLoop(source="demo"){
@@ -195,12 +202,12 @@
     for(let bar=0;bar<2;bar++){ const o=bar*4*beat; hit(o,"k"); hit(o+2*beat,"k"); hit(o+beat,"s"); hit(o+3*beat,"s"); for(let s=0;s<8;s++) hit(o+s*beat/2,"h"); }
     for(let i=0;i<d.length;i++) d[i] = Math.tanh(d[i]*1.6);
     buffer = b; fileName = source === "autoload" ? "autoload-built-in-kit.wav" : "built-in-demo-loop.wav"; transportStart = ctx.currentTime; gridChop();
-    if(source === "autoload") status("Built-in kit autoloaded. Hit any pad after Start/MIDI.");
+    if(source === "autoload") status("Built-in kit autoloaded. Pad Loop ON. Hit any pad once to loop, again to stop.");
   }
   async function demo(){
     await startAudio();
     buildDemoLoop("demo");
-    status("Demo kit regenerated and chopped into 16 pads.");
+    status("Demo kit regenerated. Pad Loop ON: tap pads to start/stop loops.");
   }
 
   function triggerSliceAt(i, vel=1, when=null, forcedDur=null){
@@ -230,14 +237,14 @@
     if(loopPads.has(i)){
       loopPads.delete(i);
       const pad = document.querySelector(`[data-pad='${i}']`); if(pad) pad.classList.remove("active");
-      status("Pad " + (i+1) + " loop queued OFF on the shared grid.");
+      status("Pad " + (i+1) + " loop OFF.");
       if(loopPads.size === 0) stopLoopScheduler();
       return;
     }
     loopPads.set(i, vel);
     const pad = document.querySelector(`[data-pad='${i}']`); if(pad) pad.classList.add("active");
     startLoopScheduler();
-    status("Pad " + (i+1) + " loop queued ON. Quantized with the other loop pads.");
+    status("Pad " + (i+1) + " loop ON. Tap it again to stop.");
   }
 
   function startLoopScheduler(){
@@ -306,10 +313,11 @@
   }
   async function enableMIDI(){
     await startAudio();
+    armLoopMode(false);
     if(!navigator.requestMIDIAccess){ status("MIDI not supported here. Use Chrome/Edge desktop."); midiMon("MIDI unavailable: browser does not expose Web MIDI."); return; }
     try{
       const midi = await navigator.requestMIDIAccess({sysex:false});
-      const bind = () => { let names=[]; for(const input of midi.inputs.values()){ input.onmidimessage=onMIDI; names.push(input.name || "MIDI input"); } const msg = names.length ? "MIDI enabled: " + names.join(", ") + ". Built-in kit is loaded." : "MIDI enabled, but no input detected. Replug Launchkey, then press MIDI again."; status(msg); midiMon(msg); };
+      const bind = () => { let names=[]; for(const input of midi.inputs.values()){ input.onmidimessage=onMIDI; names.push(input.name || "MIDI input"); } const msg = names.length ? "MIDI enabled: " + names.join(", ") + ". Pad Loop ON." : "MIDI enabled, but no input detected. Replug Launchkey, then press MIDI again."; status(msg); midiMon(msg); };
       bind(); midi.onstatechange = bind;
     }catch(e){ status("MIDI permission failed or was denied."); midiMon("MIDI error: " + (e && e.message ? e.message : e)); }
   }
@@ -344,8 +352,9 @@
   $("installBtn").onclick = async () => { if(!deferred)return; deferred.prompt(); await deferred.userChoice.catch(()=>null); deferred=null; $("installBar").classList.remove("show"); };
   if("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));
   ensurePadLoopControl();
+  armLoopMode(false);
   const defaultBtn = $("defaultSettingsBtn"); if(defaultBtn) defaultBtn.addEventListener("click", applyDefaultSettings);
   if($("velocityMode")) $("velocityMode").value = "fixed";
   renderPads(); renderKeys(); updateMap(); idleScope();
-  status("Ready. Press Start or MIDI and a built-in kit autoloads before you hit the pads.");
+  status("Ready. Press Start or MIDI. Pad Loop is ON by default.");
 })();
