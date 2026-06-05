@@ -30,7 +30,7 @@
   function nice(id){ return id.replace("fx","").replace("DelayMix","Delay").replace("DelayTime","Time"); }
   function timingLabel(steps){ const o = timingOptions.find((x) => x.steps === Number(steps)); return o ? o.label : String(steps); }
   function baseStepLength(){ return buffer ? Math.max(.06, buffer.duration / STEP_COUNT) : .25; }
-  function stepAt(time){ const len = baseStepLength(); const n = Math.floor((time - transportStart + 0.0001) / len); return ((n % STEP_COUNT) + STEP_COUNT) % STEP_COUNT; }
+  function stepAt(time){ const len = baseStepLength(); return Math.max(0, Math.floor((time - transportStart + 0.0001) / len)); }
   function nextGridTime(){ const len = baseStepLength(), now = ctx.currentTime, base = transportStart || now; return base + Math.ceil((now - base + 0.012) / len) * len; }
   function resetTransport(){ if(ctx){ transportStart = ctx.currentTime + 0.02; nextLoopTime = transportStart; nextLoopStep = 0; } }
 
@@ -340,15 +340,14 @@
 
   function shouldFirePadAtStep(pad, step){
     const timing = Math.max(1, Number(padTimings[pad]) || 4);
-    const offset = pad % Math.min(timing, STEP_COUNT);
-    return step % timing === offset;
+    return step % timing === 0;
   }
 
   function scheduleLoopPads(){
     if(!ctx || loopPads.size === 0){ stopLoopScheduler(); return; }
     const len = baseStepLength();
     while(nextLoopTime < ctx.currentTime + .16){
-      const step = nextLoopStep % STEP_COUNT;
+      const step = nextLoopStep;
       loopPads.forEach((vel, pad) => {
         if(padModes[pad] === "loop" && shouldFirePadAtStep(pad, step)){
           const timing = Math.max(1, Number(padTimings[pad]) || 4);
@@ -356,7 +355,7 @@
           triggerSliceAt(pad, vel, nextLoopTime, dur, "loop");
         }
       });
-      nextLoopStep = (nextLoopStep + 1) % STEP_COUNT;
+      nextLoopStep += 1;
       nextLoopTime += len;
     }
   }
@@ -416,7 +415,7 @@
     if(d1 || d2) status("MIDI seen but unmapped: status " + type + " data " + data.join(","));
   }
 
-  function updateMap(){ const map = {file:fileName, transport:"timed-16-step", pads:slices.map((s,i) => ({pad:i+1,mode:padModes[i],timing:timingLabel(padTimings[i]),timingSteps:padTimings[i],note:noteNames[i],midi:padNotes[i],key:qwerty[i],start:+s.start.toFixed(4),end:+s.end.toFixed(4)})), fx:{k1:"cutoff",k2:"resonance",k3:"delay",k4:"delay time",k5:"reverb",k6:"crush",k7:"pitch",k8:"gate",cc:"21-28, 71-78, CC1, pitchbend, plus auto-captured unknown CCs"}}; $("bankText").value = JSON.stringify(map,null,2); }
+  function updateMap(){ const map = {file:fileName, transport:"timed-16-step-global-phase", pads:slices.map((s,i) => ({pad:i+1,mode:padModes[i],timing:timingLabel(padTimings[i]),timingSteps:padTimings[i],note:noteNames[i],midi:padNotes[i],key:qwerty[i],start:+s.start.toFixed(4),end:+s.end.toFixed(4)})), fx:{k1:"cutoff",k2:"resonance",k3:"delay",k4:"delay time",k5:"reverb",k6:"crush",k7:"pitch",k8:"gate",cc:"21-28, 71-78, CC1, pitchbend, plus auto-captured unknown CCs"}}; $("bankText").value = JSON.stringify(map,null,2); }
   function exportMap(){ const blob = new Blob([$("bankText").value], {type:"application/json"}), a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "the-choppa-pad-map.json"; a.click(); }
 
   $("startBtn").onclick = startAudio; $("midiBtn").onclick = enableMIDI; $("panicBtn").onclick = () => { stopAll(); status("Stopped all one-shots, gates, and loops."); };
@@ -436,5 +435,5 @@
   const defaultBtn = $("defaultSettingsBtn"); if(defaultBtn) defaultBtn.addEventListener("click", applyDefaultSettings);
   if($("velocityMode")) $("velocityMode").value = "fixed";
   renderPads(); renderKeys(); renderSliceControls(); updateMap(); idleScope();
-  status("Ready. LOOP pads now have timing options: 1/16 to 2 BAR. Timing is the instrument.");
+  status("Ready. LOOP pads use shared global timing phase: 1/16 to 2 BAR.");
 })();
