@@ -1,4 +1,4 @@
-const CACHE_NAME = "the-choppa-pwa-v8-led-scheduler-fix";
+const CACHE_NAME = "the-choppa-pwa-v9-lite-hotfix";
 const APP_FILES = [
   "./",
   "./index.html",
