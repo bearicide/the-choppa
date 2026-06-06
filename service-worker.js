@@ -1,7 +1,8 @@
-const CACHE_NAME = "the-choppa-pwa-v9-lite-hotfix";
+const CACHE_NAME = "the-choppa-pwa-v10-preapp-hotfix";
 const APP_FILES = [
   "./",
   "./index.html",
+  "./hotfix.js",
   "./app.js",
   "./lite.js",
   "./manifest.json",
@@ -62,6 +63,9 @@ async function withLiteScript(response){
   const type = response.headers.get("content-type") || "";
   if(!type.includes("text/html")) return response;
   let html = await response.text();
+  if(!html.includes('src="hotfix.js"')){
+    html = html.replace('<script src="app.js"></script>', '<script src="hotfix.js"></script>\n<script src="app.js"></script>');
+  }
   if(!html.includes('src="lite.js"') && !html.includes("src='lite.js'")){
     html = html.replace('<script src="app.js"></script>', '<script src="app.js"></script>\n<script src="lite.js"></script>');
   }
