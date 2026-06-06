@@ -1,4 +1,4 @@
-const CACHE_NAME = "the-choppa-pwa-v7-immediate-loop";
+const CACHE_NAME = "the-choppa-pwa-v8-led-scheduler-fix";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -31,14 +31,26 @@ function shouldPatchApp(request){
   return url.pathname.endsWith("/the-choppa/app.js") || url.pathname.endsWith("/app.js");
 }
 
-async function withImmediateLoopStart(response){
+async function withChoppaRuntimeFixes(response){
   const type = response.headers.get("content-type") || "";
   if(type && !type.includes("javascript") && !type.includes("text/plain") && !type.includes("application/octet-stream")) return response;
   let js = await response.text();
+
+  js = js.replace(
+    "function repaintLEDs(){\n    if(!midiOut) return;\n    for(let i = 0; i < STEP_COUNT; i++) repaintPadLED(i);\n    if(loopPads.size && Number.isInteger(lastTransportPad)) setPadLED(lastTransportPad, LED.BLUE);\n  }",
+    "function repaintLEDs(){\n    if(!midiOut) return;\n    for(let i = 0; i < STEP_COUNT; i++) repaintPadLED(i);\n    if(loopPads.size && Number.isInteger(lastTransportPad) && !loopPads.has(lastTransportPad)){\n      setPadLED(lastTransportPad, LED.BLUE);\n    }\n  }"
+  );
+
+  js = js.replace(
+    "    setPadLED(current, LED.BLUE);",
+    "    if(loopPads.has(current)){\n      setPadLED(current, LED.YELLOW);\n    }else{\n      setPadLED(current, LED.BLUE);\n    }"
+  );
+
   js = js.replace(
     "function startLoopScheduler(){ if(loopScheduler) return; nextLoopTime = nextGridTime(); nextLoopStep = stepAt(nextLoopTime); loopScheduler = setInterval(scheduleLoopPads, 20); }",
-    "function startLoopScheduler(){ if(loopScheduler) return; nextLoopTime = ctx.currentTime + 0.005; nextLoopStep = stepAt(nextLoopTime); loopScheduler = setInterval(scheduleLoopPads, 20); }"
+    "function startLoopScheduler(){\n    if(loopScheduler) return;\n    nextLoopTime = ctx.currentTime + 0.005;\n    nextLoopStep = stepAt(nextLoopTime);\n    loopScheduler = setInterval(scheduleLoopPads, 20);\n  }"
   );
+
   return new Response(js, {
     status: response.status,
     statusText: response.statusText,
@@ -74,7 +86,7 @@ self.addEventListener("fetch", (event) => {
         response = await caches.match("./index.html");
       }
     }
-    if(response && shouldPatchApp(event.request)) return withImmediateLoopStart(response.clone());
+    if(response && shouldPatchApp(event.request)) return withChoppaRuntimeFixes(response.clone());
     if(response && shouldInjectLite(event.request)) return withLiteScript(response.clone());
     return response;
   })());
