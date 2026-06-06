@@ -18,12 +18,15 @@
   ];
   const padModes = Array(STEP_COUNT).fill("loop");
   const padTimings = Array(STEP_COUNT).fill(4);
+  const LED = {OFF:0, GREEN:21, YELLOW:13, RED:5, BLUE:45};
+  let grooveMode = "chop"; // "layer" stacks loops, "chop" replaces the active loop while keeping global phase.
 
   let ctx, master, filter, analyser, fx, buffer, gateTimer;
   let slices = [], active = [], fileName = "none", ready = false;
   let autoCCMap = {}, autoCCNext = 0, autoPadMap = {}, autoPadNext = 0;
   let loopPads = new Map(), loopScheduler = null, nextLoopTime = 0, nextLoopStep = 0, transportStart = 0;
   let gateSources = new Map();
+  let midiAccess = null, midiOut = null, lastTransportPad = null, ledTimers = new Map();
 
   function status(msg){ const el = $("status"); if(el) el.textContent = msg; }
   function midiMon(msg){ const el = $("midiMon"); if(el) el.textContent = msg; }
@@ -34,17 +37,83 @@
   function nextGridTime(){ const len = baseStepLength(), now = ctx.currentTime, base = transportStart || now; return base + Math.ceil((now - base + 0.012) / len) * len; }
   function resetTransport(){ if(ctx){ transportStart = ctx.currentTime + 0.02; nextLoopTime = transportStart; nextLoopStep = 0; } }
 
+
+  function setPadLED(i, color){
+    if(!midiOut || i == null || i < 0 || i >= STEP_COUNT) return;
+    try{ midiOut.send([0x90, padNotes[i], color]); }catch(e){}
+  }
+
+  function clearAllLEDs(){
+    ledTimers.forEach((timer) => clearTimeout(timer));
+    ledTimers.clear();
+    for(let i = 0; i < STEP_COUNT; i++) setPadLED(i, LED.OFF);
+    lastTransportPad = null;
+  }
+
+  function baseLEDForPad(i){ return loopPads.has(i) ? LED.GREEN : LED.OFF; }
+  function repaintPadLED(i){ setPadLED(i, baseLEDForPad(i)); }
+
+  function repaintLEDs(){
+    if(!midiOut) return;
+    for(let i = 0; i < STEP_COUNT; i++) repaintPadLED(i);
+    if(loopPads.size && Number.isInteger(lastTransportPad)) setPadLED(lastTransportPad, LED.BLUE);
+  }
+
+  function flashPadLED(i, color=LED.YELLOW, ms=110){
+    if(!midiOut) return;
+    const old = ledTimers.get(i);
+    if(old) clearTimeout(old);
+    setPadLED(i, color);
+    ledTimers.set(i, setTimeout(() => { ledTimers.delete(i); repaintPadLED(i); }, ms));
+  }
+
+  function showTransportLED(step){
+    if(!midiOut) return;
+    const current = ((step % STEP_COUNT) + STEP_COUNT) % STEP_COUNT;
+    if(lastTransportPad !== null && lastTransportPad !== current) repaintPadLED(lastTransportPad);
+    lastTransportPad = current;
+    setPadLED(current, LED.BLUE);
+    loopPads.forEach((vel, pad) => {
+      if(padModes[pad] === "loop" && shouldFirePadAtStep(pad, step + 1)) flashPadLED(pad, LED.YELLOW, 90);
+    });
+  }
+
+  function flashPanicLED(){
+    if(!midiOut) return;
+    clearAllLEDs();
+    for(let i = 0; i < STEP_COUNT; i++) setPadLED(i, LED.RED);
+    setTimeout(clearAllLEDs, 220);
+  }
+
+  function pickMIDIPort(ports){
+    const list = [...ports.values()];
+    return list.find((p) => /launchkey|novation/i.test(p.name || "")) || list[0] || null;
+  }
+
+  function setGrooveMode(mode){
+    grooveMode = mode === "layer" ? "layer" : "chop";
+    if(grooveMode === "chop" && loopPads.size > 1){
+      const last = [...loopPads.entries()].pop();
+      loopPads.clear();
+      if(last) loopPads.set(last[0], last[1]);
+      renderPads();
+    }
+    repaintLEDs();
+    updateMap();
+    status("Groove mode: " + grooveMode.toUpperCase() + (grooveMode === "chop" ? " — pads replace each other." : " — pads layer together."));
+  }
+
   function setPadMode(i, mode){
     padModes[i] = mode;
     if(mode !== "loop" && loopPads.has(i)) loopPads.delete(i);
     if(mode !== "gate") stopGatePad(i);
-    renderPads(); renderSliceControls(); updateMap();
+    renderPads(); renderSliceControls(); updateMap(); repaintLEDs();
     status("Pad " + (i + 1) + " mode: " + mode.toUpperCase() + ".");
   }
 
   function setPadTiming(i, steps){
     padTimings[i] = Number(steps) || 4;
-    renderPads(); renderSliceControls(); updateMap();
+    renderPads(); renderSliceControls(); updateMap(); repaintLEDs();
     status("Pad " + (i + 1) + " loop timing: " + timingLabel(padTimings[i]) + ".");
   }
 
@@ -90,8 +159,8 @@
     if($("choke")) $("choke").value = "on";
     if($("playMode")) $("playMode").value = "oneshot";
     for(let i = 0; i < STEP_COUNT; i++){ padModes[i] = "loop"; padTimings[i] = 4; }
-    clearLoopPads(); stopAllGates(); resetTransport();
-    renderPads(); renderSliceControls(); updateMap();
+    clearLoopPads(); stopAllGates(); resetTransport(); clearAllLEDs();
+    renderPads(); renderSliceControls(); updateMap(); repaintLEDs();
     status("Defaults restored. LOOP pads default to 1/4 timing, adjustable per pad.");
   }
 
@@ -119,6 +188,7 @@
     const pad = document.querySelector(`[data-pad='${i}']`);
     if(!pad) return;
     pad.classList.add("active");
+    if(midiOut && !loopPads.has(i)) flashPadLED(i, LED.YELLOW, 120);
     setTimeout(() => { if(!loopPads.has(i) && !gateSources.has(i)) pad.classList.remove("active"); }, 135);
   }
 
@@ -165,7 +235,7 @@
 
   async function ensureAudio(){ if(!ready) await startAudio(); }
   function stopOneShots(){ active.forEach((s) => { try{s.stop();}catch(e){} }); active = []; }
-  function stopAll(){ stopOneShots(); clearLoopPads(); stopAllGates(); }
+  function stopAll(){ stopOneShots(); clearLoopPads(); stopAllGates(); clearAllLEDs(); }
 
   function impulse(sec=1.25, dec=2.4){
     const len = Math.floor(ctx.sampleRate * sec);
@@ -225,7 +295,7 @@
     slices = [];
     const step = buffer.duration / STEP_COUNT;
     for(let i = 0; i < STEP_COUNT; i++) slices.push({start:i * step, end:(i + 1) * step});
-    clearLoopPads(false); stopAllGates(); resetTransport(); renderPads(); drawWave(); updateMap();
+    clearLoopPads(false); stopAllGates(); resetTransport(); clearAllLEDs(); renderPads(); drawWave(); updateMap();
     status("Grid chopped. LOOP timing defaults to 1/4 and is adjustable per pad.");
   }
 
@@ -248,7 +318,7 @@
     chosen.sort((a,b) => a - b);
     slices = [];
     for(let i = 0; i < STEP_COUNT; i++) slices.push({start:chosen[i], end:Math.max(chosen[i] + .03, chosen[i + 1] || buffer.duration)});
-    clearLoopPads(false); stopAllGates(); resetTransport(); renderPads(); drawWave(); updateMap();
+    clearLoopPads(false); stopAllGates(); resetTransport(); clearAllLEDs(); renderPads(); drawWave(); updateMap();
     status("Smart chop complete. Adjust timing per pad if a loop feels too fast or loose.");
   }
 
@@ -313,14 +383,20 @@
     if(loopPads.has(i)){
       loopPads.delete(i);
       const pad = document.querySelector(`[data-pad='${i}']`); if(pad) pad.classList.remove("active");
+      repaintLEDs();
       status("Pad " + (i + 1) + " loop OFF.");
       if(loopPads.size === 0) stopLoopScheduler();
       return;
     }
+    if(grooveMode === "chop"){
+      loopPads.clear();
+      renderPads();
+    }
     loopPads.set(i, vel);
     const pad = document.querySelector(`[data-pad='${i}']`); if(pad) pad.classList.add("active");
+    repaintLEDs();
     startLoopScheduler();
-    status("Pad " + (i + 1) + " loop ON at " + timingLabel(padTimings[i]) + ".");
+    status("Pad " + (i + 1) + " loop ON at " + timingLabel(padTimings[i]) + " (" + grooveMode.toUpperCase() + ").");
   }
 
   function startGatePad(i, vel=1, held=true){
@@ -329,14 +405,14 @@
     const src = triggerSliceAt(i, vel, null, held ? span : .42, "gate");
     if(src) gateSources.set(i, src);
     status("Pad " + (i + 1) + " gate " + (held ? "held" : "hit") + ".");
-    renderPads();
+    renderPads(); repaintLEDs();
   }
 
-  function stopGatePad(i){ const src = gateSources.get(i); if(src){ try{ src.stop(); }catch(e){} gateSources.delete(i); } renderPads(); }
-  function stopAllGates(){ [...gateSources.keys()].forEach(stopGatePad); gateSources.clear(); }
+  function stopGatePad(i){ const src = gateSources.get(i); if(src){ try{ src.stop(); }catch(e){} gateSources.delete(i); } renderPads(); repaintLEDs(); }
+  function stopAllGates(){ [...gateSources.keys()].forEach(stopGatePad); gateSources.clear(); repaintLEDs(); }
   function startLoopScheduler(){ if(loopScheduler) return; nextLoopTime = nextGridTime(); nextLoopStep = stepAt(nextLoopTime); loopScheduler = setInterval(scheduleLoopPads, 20); }
   function stopLoopScheduler(){ if(loopScheduler){ clearInterval(loopScheduler); loopScheduler = null; } }
-  function clearLoopPads(update=true){ loopPads.clear(); stopLoopScheduler(); if(update) renderPads(); }
+  function clearLoopPads(update=true){ loopPads.clear(); stopLoopScheduler(); if(update) renderPads(); repaintLEDs(); }
 
   function shouldFirePadAtStep(pad, step){
     const timing = Math.max(1, Number(padTimings[pad]) || 4);
@@ -344,10 +420,11 @@
   }
 
   function scheduleLoopPads(){
-    if(!ctx || loopPads.size === 0){ stopLoopScheduler(); return; }
+    if(!ctx || loopPads.size === 0){ stopLoopScheduler(); repaintLEDs(); return; }
     const len = baseStepLength();
     while(nextLoopTime < ctx.currentTime + .16){
       const step = nextLoopStep;
+      showTransportLED(step);
       loopPads.forEach((vel, pad) => {
         if(padModes[pad] === "loop" && shouldFirePadAtStep(pad, step)){
           const timing = Math.max(1, Number(padTimings[pad]) || 4);
@@ -400,7 +477,26 @@
   async function enableMIDI(){
     await startAudio();
     if(!navigator.requestMIDIAccess){ status("MIDI not supported here. Use Chrome/Edge desktop."); midiMon("MIDI unavailable: browser does not expose Web MIDI."); return; }
-    try{ const midi = await navigator.requestMIDIAccess({sysex:false}); const bind = () => { let names = []; for(const input of midi.inputs.values()){ input.onmidimessage = onMIDI; names.push(input.name || "MIDI input"); } const msg = names.length ? "MIDI enabled: " + names.join(", ") + ". Per-pad timing active." : "MIDI enabled, but no input detected. Replug Launchkey, then press MIDI again."; status(msg); midiMon(msg); }; bind(); midi.onstatechange = bind; }
+    try{
+      midiAccess = await navigator.requestMIDIAccess({sysex:false});
+      const bind = async () => {
+        if(ctx && ctx.state !== "running") await ctx.resume().catch(() => null);
+        let names = [];
+        for(const input of midiAccess.inputs.values()){
+          input.onmidimessage = onMIDI;
+          names.push(input.name || "MIDI input");
+        }
+        midiOut = pickMIDIPort(midiAccess.outputs);
+        clearAllLEDs();
+        repaintLEDs();
+        const outName = midiOut ? (midiOut.name || "MIDI output") : "no LED output";
+        const msg = names.length ? "MIDI enabled: " + names.join(", ") + " / OUT: " + outName + "." : "MIDI enabled, but no input detected. Replug Launchkey, then press MIDI again.";
+        status(msg);
+        midiMon(msg);
+      };
+      await bind();
+      midiAccess.onstatechange = () => { bind(); };
+    }
     catch(e){ status("MIDI permission failed or was denied."); midiMon("MIDI error: " + (e && e.message ? e.message : e)); }
   }
 
@@ -415,12 +511,12 @@
     if(d1 || d2) status("MIDI seen but unmapped: status " + type + " data " + data.join(","));
   }
 
-  function updateMap(){ const map = {file:fileName, transport:"timed-16-step-global-phase", pads:slices.map((s,i) => ({pad:i+1,mode:padModes[i],timing:timingLabel(padTimings[i]),timingSteps:padTimings[i],note:noteNames[i],midi:padNotes[i],key:qwerty[i],start:+s.start.toFixed(4),end:+s.end.toFixed(4)})), fx:{k1:"cutoff",k2:"resonance",k3:"delay",k4:"delay time",k5:"reverb",k6:"crush",k7:"pitch",k8:"gate",cc:"21-28, 71-78, CC1, pitchbend, plus auto-captured unknown CCs"}}; $("bankText").value = JSON.stringify(map,null,2); }
+  function updateMap(){ const map = {file:fileName, transport:"timed-16-step-global-phase", grooveMode:grooveMode, pads:slices.map((s,i) => ({pad:i+1,mode:padModes[i],timing:timingLabel(padTimings[i]),timingSteps:padTimings[i],note:noteNames[i],midi:padNotes[i],key:qwerty[i],start:+s.start.toFixed(4),end:+s.end.toFixed(4)})), fx:{k1:"cutoff",k2:"resonance",k3:"delay",k4:"delay time",k5:"reverb",k6:"crush",k7:"pitch",k8:"gate",cc:"21-28, 71-78, CC1, pitchbend, plus auto-captured unknown CCs"}, midiLEDs:{off:LED.OFF, active:"green", transport:"blue", upcoming:"yellow", panic:"red"}}; $("bankText").value = JSON.stringify(map,null,2); }
   function exportMap(){ const blob = new Blob([$("bankText").value], {type:"application/json"}), a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "the-choppa-pad-map.json"; a.click(); }
 
-  $("startBtn").onclick = startAudio; $("midiBtn").onclick = enableMIDI; $("panicBtn").onclick = () => { stopAll(); status("Stopped all one-shots, gates, and loops."); };
+  $("startBtn").onclick = startAudio; $("midiBtn").onclick = enableMIDI; $("panicBtn").onclick = () => { stopAll(); flashPanicLED(); status("Stopped all one-shots, gates, loops, and hardware LEDs."); };
   $("loopUpload").onchange = (e) => { if(e.target.files[0]) loadFile(e.target.files[0]); };
-  $("gridChopBtn").onclick = gridChop; $("transientChopBtn").onclick = smartChop; $("reverseBtn").onclick = () => { if(slices.length){ slices.reverse(); clearLoopPads(false); stopAllGates(); resetTransport(); renderPads(); drawWave(); updateMap(); status("Pad order reversed. Transport reset."); } };
+  $("gridChopBtn").onclick = gridChop; $("transientChopBtn").onclick = smartChop; $("reverseBtn").onclick = () => { if(slices.length){ slices.reverse(); clearLoopPads(false); stopAllGates(); resetTransport(); clearAllLEDs(); renderPads(); drawWave(); updateMap(); status("Pad order reversed. Transport reset."); } };
   $("demoBtn").onclick = demo; $("exportBtn").onclick = exportMap; $("visualMode").onchange = idleScope;
   $("vol").oninput = (e) => { if(master) master.gain.value = Number(e.target.value); };
   $("filter").oninput = (e) => setCut(e.target.value); $("pitch").oninput = (e) => setPitch(e.target.value); $("fxCutoff").oninput = (e) => setCut(e.target.value); $("fxPitch").oninput = (e) => setPitch(e.target.value);
@@ -434,6 +530,8 @@
   ensureSliceModePanel();
   const defaultBtn = $("defaultSettingsBtn"); if(defaultBtn) defaultBtn.addEventListener("click", applyDefaultSettings);
   if($("velocityMode")) $("velocityMode").value = "fixed";
+  window.choppaSetGrooveMode = setGrooveMode;
+  window.choppaGrooveMode = () => grooveMode;
   renderPads(); renderKeys(); renderSliceControls(); updateMap(); idleScope();
   status("Ready. LOOP pads use shared global timing phase: 1/16 to 2 BAR.");
 })();
