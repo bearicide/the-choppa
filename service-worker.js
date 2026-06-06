@@ -1,4 +1,4 @@
-const CACHE_NAME = "the-choppa-pwa-v6-lite-lights";
+const CACHE_NAME = "the-choppa-pwa-v7-immediate-loop";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -24,6 +24,26 @@ self.addEventListener("activate", (event) => {
 function shouldInjectLite(request){
   const url = new URL(request.url);
   return request.mode === "navigate" || url.pathname.endsWith("/the-choppa/") || url.pathname.endsWith("/the-choppa/index.html");
+}
+
+function shouldPatchApp(request){
+  const url = new URL(request.url);
+  return url.pathname.endsWith("/the-choppa/app.js") || url.pathname.endsWith("/app.js");
+}
+
+async function withImmediateLoopStart(response){
+  const type = response.headers.get("content-type") || "";
+  if(type && !type.includes("javascript") && !type.includes("text/plain") && !type.includes("application/octet-stream")) return response;
+  let js = await response.text();
+  js = js.replace(
+    "function startLoopScheduler(){ if(loopScheduler) return; nextLoopTime = nextGridTime(); nextLoopStep = stepAt(nextLoopTime); loopScheduler = setInterval(scheduleLoopPads, 20); }",
+    "function startLoopScheduler(){ if(loopScheduler) return; nextLoopTime = ctx.currentTime + 0.005; nextLoopStep = stepAt(nextLoopTime); loopScheduler = setInterval(scheduleLoopPads, 20); }"
+  );
+  return new Response(js, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: {"content-type":"application/javascript; charset=utf-8", "cache-control":"no-cache"}
+  });
 }
 
 async function withLiteScript(response){
@@ -54,6 +74,7 @@ self.addEventListener("fetch", (event) => {
         response = await caches.match("./index.html");
       }
     }
+    if(response && shouldPatchApp(event.request)) return withImmediateLoopStart(response.clone());
     if(response && shouldInjectLite(event.request)) return withLiteScript(response.clone());
     return response;
   })());
