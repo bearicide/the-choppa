@@ -1,97 +1,52 @@
-const CACHE_NAME = "the-choppa-pwa-v10-preapp-hotfix";
-const APP_FILES = [
+const CACHE_NAME = "the-choppa-live-repo-v2026-06-07-50b4b2a";
+const CORE_FILES = [
   "./",
   "./index.html",
-  "./hotfix.js",
-  "./app.js",
-  "./lite.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_FILES)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_FILES).catch(() => null))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+    caches.keys().then((keys) => Promise.all(
+      keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+    ))
   );
   self.clients.claim();
 });
 
-function shouldInjectLite(request){
-  const url = new URL(request.url);
-  return request.mode === "navigate" || url.pathname.endsWith("/the-choppa/") || url.pathname.endsWith("/the-choppa/index.html");
-}
-
-function shouldPatchApp(request){
-  const url = new URL(request.url);
-  return url.pathname.endsWith("/the-choppa/app.js") || url.pathname.endsWith("/app.js");
-}
-
-async function withChoppaRuntimeFixes(response){
-  const type = response.headers.get("content-type") || "";
-  if(type && !type.includes("javascript") && !type.includes("text/plain") && !type.includes("application/octet-stream")) return response;
-  let js = await response.text();
-
-  js = js.replace(
-    "function repaintLEDs(){\n    if(!midiOut) return;\n    for(let i = 0; i < STEP_COUNT; i++) repaintPadLED(i);\n    if(loopPads.size && Number.isInteger(lastTransportPad)) setPadLED(lastTransportPad, LED.BLUE);\n  }",
-    "function repaintLEDs(){\n    if(!midiOut) return;\n    for(let i = 0; i < STEP_COUNT; i++) repaintPadLED(i);\n    if(loopPads.size && Number.isInteger(lastTransportPad) && !loopPads.has(lastTransportPad)){\n      setPadLED(lastTransportPad, LED.BLUE);\n    }\n  }"
-  );
-
-  js = js.replace(
-    "    setPadLED(current, LED.BLUE);",
-    "    if(loopPads.has(current)){\n      setPadLED(current, LED.YELLOW);\n    }else{\n      setPadLED(current, LED.BLUE);\n    }"
-  );
-
-  js = js.replace(
-    "function startLoopScheduler(){ if(loopScheduler) return; nextLoopTime = nextGridTime(); nextLoopStep = stepAt(nextLoopTime); loopScheduler = setInterval(scheduleLoopPads, 20); }",
-    "function startLoopScheduler(){\n    if(loopScheduler) return;\n    nextLoopTime = ctx.currentTime + 0.005;\n    nextLoopStep = stepAt(nextLoopTime);\n    loopScheduler = setInterval(scheduleLoopPads, 20);\n  }"
-  );
-
-  return new Response(js, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: {"content-type":"application/javascript; charset=utf-8", "cache-control":"no-cache"}
-  });
-}
-
-async function withLiteScript(response){
-  const type = response.headers.get("content-type") || "";
-  if(!type.includes("text/html")) return response;
-  let html = await response.text();
-  if(!html.includes('src="hotfix.js"')){
-    html = html.replace('<script src="app.js"></script>', '<script src="hotfix.js"></script>\n<script src="app.js"></script>');
-  }
-  if(!html.includes('src="lite.js"') && !html.includes("src='lite.js'")){
-    html = html.replace('<script src="app.js"></script>', '<script src="app.js"></script>\n<script src="lite.js"></script>');
-  }
-  return new Response(html, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: {"content-type":"text/html; charset=utf-8", "cache-control":"no-cache"}
-  });
-}
-
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  event.respondWith((async () => {
-    const cached = await caches.match(event.request);
-    let response = cached;
-    if(!response){
-      try{
-        response = await fetch(event.request);
+  const url = new URL(event.request.url);
+
+  if (event.request.mode === "navigate" || url.pathname.endsWith("/the-choppa/") || url.pathname.endsWith("/the-choppa/index.html")) {
+    event.respondWith(
+      fetch(event.request, { cache: "no-store" })
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", copy));
+          return response;
+        })
+        .catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
         const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
-      }catch(e){
-        response = await caches.match("./index.html");
-      }
-    }
-    if(response && shouldPatchApp(event.request)) return withChoppaRuntimeFixes(response.clone());
-    if(response && shouldInjectLite(event.request)) return withLiteScript(response.clone());
-    return response;
-  })());
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
 });
