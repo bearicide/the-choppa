@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v1';
+const CHOPPA_CACHE = 'the-choppa-standalone-v2';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/choppa-icon.svg'];
 
 self.addEventListener('install', event => {
@@ -20,16 +20,15 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
+    fetch(event.request)
+      .then(response => {
         const copy = response.clone();
         const url = new URL(event.request.url);
         if (url.origin === location.origin) {
           caches.open(CHOPPA_CACHE).then(cache => cache.put(event.request, copy));
         }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
