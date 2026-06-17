@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-static-v11';
+const CHOPPA_CACHE = 'the-choppa-static-v12';
 const DEMO_AUDIO = './assets/mattbear-amen-to-that-demo.mp3';
 const LEGACY_DEMO_AUDIO = './assets/audio/mattbear-amen-to-that-demo.mp3';
 const PAD_LOOP_HELPER = './choppa-pad-loop-default.js';
