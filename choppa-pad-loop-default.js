@@ -8,6 +8,25 @@
   let bendSemis = 0;
   let modAmount = 0;
 
+  function injectBackground() {
+    if (byId('choppaHunterOrangePatch')) return;
+    const style = document.createElement('style');
+    style.id = 'choppaHunterOrangePatch';
+    style.textContent = `
+      html,body{background:#ff5a00!important;}
+      body::before{
+        background:linear-gradient(180deg,rgba(255,90,0,.74),rgba(217,71,0,.86)),url('assets/the-choppa-bg.png') center/cover fixed no-repeat!important;
+        background-blend-mode:multiply,normal!important;
+        background-size:cover!important;
+        background-position:center!important;
+        opacity:1!important;
+      }
+      body::after{opacity:calc(.32 + var(--beat,0)*.74)!important;}
+      .card,.panel,.top,.nav,.xyPanel{background-color:rgba(5,6,9,.76)!important;}
+    `;
+    document.head.appendChild(style);
+  }
+
   function choose(select, label) {
     if (!select) return;
     const want = String(label).toLowerCase();
@@ -163,6 +182,7 @@
   }
 
   function install() {
+    injectBackground();
     defaults();
     armPitchModMidi();
     document.addEventListener('pointerdown', event => {
