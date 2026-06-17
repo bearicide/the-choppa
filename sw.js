@@ -1,4 +1,6 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v4';
+const CHOPPA_CACHE = 'the-choppa-standalone-v5';
+const DEMO_AUDIO = './assets/mattbear-amen-to-that-demo.mp3';
+const LEGACY_DEMO_AUDIO = './assets/audio/mattbear-amen-to-that-demo.mp3';
 const CORE = [
   './',
   './index.html',
@@ -6,13 +8,13 @@ const CORE = [
   './icons/choppa-icon.svg',
   './assets/the-choppa-bg.png',
   './assets/the-choppa-hero.png',
-  './assets/audio/mattbear-amen-to-that-demo.mp3'
+  DEMO_AUDIO
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CHOPPA_CACHE)
-      .then(cache => cache.addAll(CORE).catch(() => cache.addAll(CORE.filter(url => !url.includes('/audio/')))))
+      .then(cache => cache.addAll(CORE).catch(() => cache.addAll(CORE.filter(url => !url.endsWith('.mp3')))))
       .then(() => self.skipWaiting())
   );
 });
@@ -27,16 +29,21 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  const demoPath = new URL(DEMO_AUDIO, self.location).pathname;
+  const legacyDemoPath = new URL(LEGACY_DEMO_AUDIO, self.location).pathname;
+  const request = url.pathname === legacyDemoPath ? new Request(new URL(DEMO_AUDIO, self.location), event.request) : event.request;
+
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then(response => {
         const copy = response.clone();
-        const url = new URL(event.request.url);
-        if (url.origin === location.origin) {
-          caches.open(CHOPPA_CACHE).then(cache => cache.put(event.request, copy));
+        const requestUrl = new URL(request.url);
+        if (requestUrl.origin === location.origin && response.ok) {
+          caches.open(CHOPPA_CACHE).then(cache => cache.put(request, copy));
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(request).then(cached => cached || caches.match(DEMO_AUDIO)))
   );
 });
