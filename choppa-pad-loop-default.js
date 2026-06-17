@@ -1,29 +1,23 @@
 (() => {
   if (window.choppaPadLoopDefaultLoaded) return;
   window.choppaPadLoopDefaultLoaded = true;
+
   const byId = id => document.getElementById(id);
-  const keyPads = ['1','2','3','4','5','6','7','8','q','w','e','r','t','y','u','i'];
   const trackedSources = new Set();
-  let working = false;
   let bendSemis = 0;
   let modAmount = 0;
 
-  function injectBackground() {
+  function injectVisualPatch() {
     if (byId('choppaHunterOrangePatch')) return;
     const style = document.createElement('style');
     style.id = 'choppaHunterOrangePatch';
     style.textContent = `
       html,body{background:#ff5a00!important;font-size:18px!important;}
-      body{font-size:1.12rem!important;}
-      body::before{
-        background:linear-gradient(180deg,rgba(255,90,0,.74),rgba(217,71,0,.86)),url('assets/the-choppa-bg.png') center/cover fixed no-repeat!important;
-        background-blend-mode:multiply,normal!important;
-        background-size:cover!important;
-        background-position:center!important;
-        opacity:1!important;
-      }
-      body::after{opacity:calc(.32 + var(--beat,0)*.74)!important;}
-      .card,.panel,.top,.nav,.xyPanel{background-color:rgba(5,6,9,.76)!important;}
+      body{font-size:1.12rem!important;background:#ff5a00!important;}
+      body::before{background:#ff5a00!important;background-image:none!important;filter:none!important;opacity:1!important;mix-blend-mode:normal!important;}
+      body::after{background:radial-gradient(circle at 18% 12%,rgba(255,220,120,.28),transparent 30%),linear-gradient(180deg,rgba(255,106,0,.55),rgba(204,58,0,.68))!important;filter:none!important;mix-blend-mode:normal!important;opacity:.9!important;}
+      .app,main,.wrap{background:transparent!important;}
+      .card,.panel,.top,.nav,.xyPanel{background-color:rgba(5,6,9,.78)!important;}
       .brand b{font-size:clamp(2.1rem,4.2vw,3.4rem)!important;line-height:.9!important;}
       h1,.title{font-size:clamp(4.8rem,14vw,14rem)!important;}
       h2{font-size:clamp(1.45rem,2.6vw,2.35rem)!important;line-height:1!important;}
@@ -43,13 +37,29 @@
     document.head.appendChild(style);
   }
 
-  function choose(select, label) {
-    if (!select) return;
-    const want = String(label).toLowerCase();
-    const opt = Array.from(select.options).find(o => String(o.textContent).toLowerCase() === want || String(o.value).toLowerCase() === want);
-    if (opt && select.value !== opt.value) {
-      select.value = opt.value;
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+  function fire(el, type = 'change') {
+    if (!el) return;
+    el.dispatchEvent(new Event(type, { bubbles: true }));
+  }
+
+  function choose(select, value) {
+    if (!select) return false;
+    const want = String(value).toLowerCase();
+    const option = Array.from(select.options || []).find(o => String(o.value).toLowerCase() === want || String(o.textContent).toLowerCase() === want);
+    if (!option) return false;
+    if (select.value !== option.value) {
+      select.value = option.value;
+      fire(select, 'input');
+      fire(select, 'change');
+    }
+    return true;
+  }
+
+  function applySafeDefaults() {
+    choose(byId('choke'), 'on');
+    choose(byId('velocityMode'), 'fixed');
+    if (typeof window.choppaSetGrooveMode === 'function' && window.choppaGrooveMode?.() !== 'chop') {
+      window.choppaSetGrooveMode('chop');
     }
   }
 
@@ -61,45 +71,10 @@
     const next = Math.max(min, Math.min(max, value));
     if (String(el.value) !== String(next)) {
       el.value = next;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
+      fire(el, 'input');
+      fire(el, 'change');
     }
     return true;
-  }
-
-  function padIndex(node) {
-    const pad = node?.closest?.('.pad');
-    if (!pad) return -1;
-    for (const name of pad.classList) {
-      const match = name.match(/^p(\d+)$/);
-      if (match) return Number(match[1]);
-    }
-    const raw = (pad.querySelector('span')?.textContent || '').trim();
-    const number = Number(raw);
-    return Number.isFinite(number) ? number - 1 : -1;
-  }
-
-  function defaults() {
-    choose(byId('triggerMode'), 'Choke');
-    const hold = byId('holdLoopBtn');
-    if (hold && !hold.classList.contains('active')) hold.click();
-  }
-
-  async function loopOnly(index) {
-    if (working || index < 0) return;
-    const select = byId('padSelect');
-    const clear = byId('clearLoopBtn');
-    const loop = byId('loopSelected');
-    if (!select || !clear || !loop) return;
-    working = true;
-    defaults();
-    select.value = String(index);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    clear.click();
-    await new Promise(r => setTimeout(r, 20));
-    loop.click();
-    document.querySelectorAll('.pad').forEach((pad, i) => pad.classList.toggle('queued', i === index));
-    setTimeout(() => { working = false; }, 90);
   }
 
   function patchAudioContext() {
@@ -143,8 +118,7 @@
       read = document.createElement('span');
       read.id = 'choppaPitchModReadout';
       read.className = 'pill ok';
-      const status = document.querySelector('.status');
-      status?.appendChild(read);
+      document.querySelector('.status')?.appendChild(read);
     }
     if (read) read.innerHTML = 'Wheel <strong>' + bendSemis.toFixed(1) + 'st</strong> Mod <strong>' + Math.round(modAmount * 100) + '%</strong>';
   }
@@ -157,8 +131,8 @@
       const max = Number(filter.max || 18000);
       setInput('filter', min + (max - min) * (0.35 + modAmount * 0.65));
     }
-    if (byId('crush')) setInput('crush', Math.min(Number(byId('crush').max || 1), modAmount));
-    if (byId('gate')) setInput('gate', Math.min(Number(byId('gate').max || 1), modAmount * 0.75));
+    if (byId('fxCrush')) setInput('fxCrush', Math.min(Number(byId('fxCrush').max || 1), modAmount));
+    if (byId('fxGate')) setInput('fxGate', Math.min(Number(byId('fxGate').max || 1), modAmount * 0.75));
     showMidiReadout();
   }
 
@@ -193,29 +167,16 @@
       bind();
       access.addEventListener?.('statechange', bind);
     } catch {
-      // Browser denied MIDI. Existing app controls still work.
+      // Web MIDI was denied or unavailable. The main app still runs.
     }
   }
 
   function install() {
-    injectBackground();
-    defaults();
+    injectVisualPatch();
+    applySafeDefaults();
+    setTimeout(applySafeDefaults, 350);
+    setTimeout(applySafeDefaults, 1200);
     armPitchModMidi();
-    document.addEventListener('pointerdown', event => {
-      const index = padIndex(event.target);
-      if (index < 0 || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
-      event.preventDefault();
-      event.stopPropagation();
-      loopOnly(index);
-    }, true);
-    document.addEventListener('keydown', event => {
-      if (event.target?.matches?.('input,select,textarea,button')) return;
-      const index = keyPads.indexOf(event.key.toLowerCase());
-      if (index < 0 || event.repeat) return;
-      event.preventDefault();
-      event.stopPropagation();
-      loopOnly(index);
-    }, true);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
