@@ -1,14 +1,22 @@
-const CHOPPA_CACHE = 'the-choppa-static-v8';
+const CHOPPA_CACHE = 'the-choppa-static-v9';
 const DEMO_AUDIO = './assets/mattbear-amen-to-that-demo.mp3';
 const LEGACY_DEMO_AUDIO = './assets/audio/mattbear-amen-to-that-demo.mp3';
+const PAD_LOOP_HELPER = './choppa-pad-loop-default.js';
 
 const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/choppa-icon.svg',
   './assets/the-choppa-bg.png',
   './assets/the-choppa-hero.png',
-  DEMO_AUDIO
+  DEMO_AUDIO,
+  PAD_LOOP_HELPER
 ];
+
+function withPadLoopHelper(html) {
+  if (html.includes(PAD_LOOP_HELPER)) return html;
+  const tag = '<script src="' + PAD_LOOP_HELPER + '"></script>';
+  return html.includes('</body>') ? html.replace('</body>', tag + '\n</body>') : html + tag;
+}
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -42,6 +50,11 @@ self.addEventListener('fetch', event => {
   if (isDocument) {
     event.respondWith(
       fetch(normalizedRequest, { cache: 'no-store' })
+        .then(response => response.text().then(html => new Response(withPadLoopHelper(html), {
+          status: response.status,
+          statusText: response.statusText,
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }
+        })))
         .catch(() => caches.match('./index.html'))
     );
     return;
