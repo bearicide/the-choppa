@@ -1,9 +1,8 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v7';
+const CHOPPA_CACHE = 'the-choppa-static-v8';
 const DEMO_AUDIO = './assets/mattbear-amen-to-that-demo.mp3';
 const LEGACY_DEMO_AUDIO = './assets/audio/mattbear-amen-to-that-demo.mp3';
-const CORE = [
-  './',
-  './index.html',
+
+const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/choppa-icon.svg',
   './assets/the-choppa-bg.png',
@@ -14,7 +13,7 @@ const CORE = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CHOPPA_CACHE)
-      .then(cache => cache.addAll(CORE).catch(() => cache.addAll(CORE.filter(url => !url.endsWith('.mp3')))))
+      .then(cache => cache.addAll(STATIC_ASSETS).catch(() => cache.addAll(STATIC_ASSETS.filter(url => !url.endsWith('.mp3')))))
       .then(() => self.skipWaiting())
   );
 });
@@ -29,20 +28,40 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
   const legacyDemoPath = new URL(LEGACY_DEMO_AUDIO, self.location).pathname;
-  const request = url.pathname === legacyDemoPath ? new Request(new URL(DEMO_AUDIO, self.location), event.request) : event.request;
+  const normalizedRequest = url.pathname === legacyDemoPath
+    ? new Request(new URL(DEMO_AUDIO, self.location), event.request)
+    : event.request;
+  const normalizedUrl = new URL(normalizedRequest.url);
+
+  const isSameOrigin = normalizedUrl.origin === self.location.origin;
+  const isDocument = event.request.mode === 'navigate' || event.request.destination === 'document' || normalizedUrl.pathname.endsWith('/index.html');
+
+  if (isDocument) {
+    event.respondWith(
+      fetch(normalizedRequest, { cache: 'no-store' })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  if (!isSameOrigin) {
+    event.respondWith(fetch(normalizedRequest));
+    return;
+  }
 
   event.respondWith(
-    fetch(request)
-      .then(response => {
-        const copy = response.clone();
-        const requestUrl = new URL(request.url);
-        if (requestUrl.origin === location.origin && response.ok) {
-          caches.open(CHOPPA_CACHE).then(cache => cache.put(request, copy));
+    caches.match(normalizedRequest).then(cached => {
+      const network = fetch(normalizedRequest).then(response => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CHOPPA_CACHE).then(cache => cache.put(normalizedRequest, copy));
         }
         return response;
-      })
-      .catch(() => caches.match(request).then(cached => cached || caches.match(DEMO_AUDIO)))
+      });
+      return cached || network.catch(() => cached || caches.match(DEMO_AUDIO));
+    })
   );
 });
