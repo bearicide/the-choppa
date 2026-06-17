@@ -1,0 +1,20 @@
+{
+  "name": "The Choppa",
+  "short_name": "Choppa",
+  "description": "Standalone browser sample slicer with pads, FX, MIDI, and loop playhead.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05060a",
+  "theme_color": "#05060a",
+  "icons": [
+    {
+      "src": "icons/choppa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "entertainment", "utilities"]
+}
