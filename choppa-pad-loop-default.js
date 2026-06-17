@@ -3,7 +3,10 @@
   window.choppaPadLoopDefaultLoaded = true;
   const byId = id => document.getElementById(id);
   const keyPads = ['1','2','3','4','5','6','7','8','q','w','e','r','t','y','u','i'];
+  const trackedSources = new Set();
   let working = false;
+  let bendSemis = 0;
+  let modAmount = 0;
 
   function choose(select, label) {
     if (!select) return;
@@ -13,6 +16,20 @@
       select.value = opt.value;
       select.dispatchEvent(new Event('change', { bubbles: true }));
     }
+  }
+
+  function setInput(id, value) {
+    const el = byId(id);
+    if (!el) return false;
+    const min = Number(el.min || 0);
+    const max = Number(el.max || 1);
+    const next = Math.max(min, Math.min(max, value));
+    if (String(el.value) !== String(next)) {
+      el.value = next;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    return true;
   }
 
   function padIndex(node) {
@@ -50,8 +67,104 @@
     setTimeout(() => { working = false; }, 90);
   }
 
+  function patchAudioContext() {
+    const targets = [window.AudioContext, window.webkitAudioContext].filter(Boolean);
+    for (const Ctor of targets) {
+      if (Ctor.prototype.choppaPitchModPatched) continue;
+      Ctor.prototype.choppaPitchModPatched = true;
+      const original = Ctor.prototype.createBufferSource;
+      Ctor.prototype.createBufferSource = function patchedCreateBufferSource() {
+        const source = original.apply(this, arguments);
+        source.choppaBaseRate = source.playbackRate?.value || 1;
+        const originalStart = source.start;
+        source.start = function patchedStart() {
+          source.choppaBaseRate = source.playbackRate?.value || source.choppaBaseRate || 1;
+          trackedSources.add(source);
+          source.addEventListener?.('ended', () => trackedSources.delete(source), { once: true });
+          return originalStart.apply(source, arguments);
+        };
+        return source;
+      };
+    }
+  }
+
+  function applyPitch() {
+    const ratio = Math.pow(2, bendSemis / 12);
+    trackedSources.forEach(source => {
+      try {
+        const base = source.choppaBaseRate || 1;
+        const ctx = source.context;
+        if (source.playbackRate?.setTargetAtTime && ctx) source.playbackRate.setTargetAtTime(base * ratio, ctx.currentTime, 0.01);
+        else if (source.playbackRate) source.playbackRate.value = base * ratio;
+      } catch {
+        trackedSources.delete(source);
+      }
+    });
+  }
+
+  function showMidiReadout() {
+    let read = byId('choppaPitchModReadout');
+    if (!read) {
+      read = document.createElement('span');
+      read.id = 'choppaPitchModReadout';
+      read.className = 'pill ok';
+      const status = document.querySelector('.status');
+      status?.appendChild(read);
+    }
+    if (read) read.innerHTML = 'Wheel <strong>' + bendSemis.toFixed(1) + 'st</strong> Mod <strong>' + Math.round(modAmount * 100) + '%</strong>';
+  }
+
+  function applyMod() {
+    modAmount = Math.max(0, Math.min(1, modAmount));
+    const filter = byId('filter');
+    if (filter) {
+      const min = Number(filter.min || 300);
+      const max = Number(filter.max || 18000);
+      setInput('filter', min + (max - min) * (0.35 + modAmount * 0.65));
+    }
+    if (byId('crush')) setInput('crush', Math.min(Number(byId('crush').max || 1), modAmount));
+    if (byId('gate')) setInput('gate', Math.min(Number(byId('gate').max || 1), modAmount * 0.75));
+    showMidiReadout();
+  }
+
+  function handleMidiMessage(event) {
+    const data = event.data || [];
+    const status = data[0] & 240;
+    if (status === 224) {
+      const raw = (data[2] << 7) + data[1];
+      bendSemis = ((raw - 8192) / 8192) * 12;
+      applyPitch();
+      showMidiReadout();
+    }
+    if (status === 176 && data[1] === 1) {
+      modAmount = (data[2] || 0) / 127;
+      applyMod();
+    }
+  }
+
+  async function armPitchModMidi() {
+    patchAudioContext();
+    showMidiReadout();
+    if (!navigator.requestMIDIAccess) return;
+    try {
+      const access = await navigator.requestMIDIAccess({ sysex: false });
+      const bind = () => {
+        access.inputs.forEach(input => {
+          if (input.choppaPitchModListener) return;
+          input.choppaPitchModListener = true;
+          input.addEventListener('midimessage', handleMidiMessage);
+        });
+      };
+      bind();
+      access.addEventListener?.('statechange', bind);
+    } catch {
+      // Browser denied MIDI. Existing app controls still work.
+    }
+  }
+
   function install() {
     defaults();
+    armPitchModMidi();
     document.addEventListener('pointerdown', event => {
       const index = padIndex(event.target);
       if (index < 0 || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
