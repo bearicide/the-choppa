@@ -13,7 +13,8 @@
     const style = document.createElement('style');
     style.id = 'choppaHunterOrangePatch';
     style.textContent = `
-      html,body{background:#ff5a00!important;}
+      html,body{background:#ff5a00!important;font-size:18px!important;}
+      body{font-size:1.12rem!important;}
       body::before{
         background:linear-gradient(180deg,rgba(255,90,0,.74),rgba(217,71,0,.86)),url('assets/the-choppa-bg.png') center/cover fixed no-repeat!important;
         background-blend-mode:multiply,normal!important;
@@ -23,6 +24,21 @@
       }
       body::after{opacity:calc(.32 + var(--beat,0)*.74)!important;}
       .card,.panel,.top,.nav,.xyPanel{background-color:rgba(5,6,9,.76)!important;}
+      .brand b{font-size:clamp(2.1rem,4.2vw,3.4rem)!important;line-height:.9!important;}
+      h1,.title{font-size:clamp(4.8rem,14vw,14rem)!important;}
+      h2{font-size:clamp(1.45rem,2.6vw,2.35rem)!important;line-height:1!important;}
+      h3{font-size:clamp(1.25rem,2.2vw,1.9rem)!important;}
+      .pill,.btn,.mini,.box,.small,label,select,input,output{font-size:1rem!important;}
+      .pill{min-height:42px!important;padding:9px 14px!important;}
+      .btn{min-height:50px!important;padding:.7rem .9rem!important;}
+      .mini{min-height:40px!important;padding:.55rem .75rem!important;}
+      .step,.midiRow,.slider,.helpGrid,.inside,p{font-size:1.08rem!important;line-height:1.42!important;}
+      .pad{font-size:clamp(1.65rem,4vw,3.1rem)!important;}
+      .pad small,.pad em{font-size:.72rem!important;}
+      .knob strong{font-size:.92rem!important;}
+      .knob output{font-size:.86rem!important;}
+      .status{gap:12px!important;}
+      @media(max-width:720px){html,body{font-size:17px!important}.brand b{font-size:2rem!important}.pill,.btn,.mini,.box,label,select,input,output{font-size:.95rem!important}.pad small,.pad em{font-size:.66rem!important}}
     `;
     document.head.appendChild(style);
   }
