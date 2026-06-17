@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v6';
+const CHOPPA_CACHE = 'the-choppa-standalone-v7';
 const DEMO_AUDIO = './assets/mattbear-amen-to-that-demo.mp3';
 const LEGACY_DEMO_AUDIO = './assets/audio/mattbear-amen-to-that-demo.mp3';
 const CORE = [
@@ -30,7 +30,6 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  const demoPath = new URL(DEMO_AUDIO, self.location).pathname;
   const legacyDemoPath = new URL(LEGACY_DEMO_AUDIO, self.location).pathname;
   const request = url.pathname === legacyDemoPath ? new Request(new URL(DEMO_AUDIO, self.location), event.request) : event.request;
 
