@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v5';
+const CHOPPA_CACHE = 'the-choppa-standalone-v6';
 const DEMO_AUDIO = './assets/mattbear-amen-to-that-demo.mp3';
 const LEGACY_DEMO_AUDIO = './assets/audio/mattbear-amen-to-that-demo.mp3';
 const CORE = [
