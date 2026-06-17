@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v2';
+const CHOPPA_CACHE = 'the-choppa-standalone-v3';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/choppa-icon.svg'];
 
 self.addEventListener('install', event => {
