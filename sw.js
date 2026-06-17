@@ -1,10 +1,18 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v3';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icons/choppa-icon.svg'];
+const CHOPPA_CACHE = 'the-choppa-standalone-v4';
+const CORE = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icons/choppa-icon.svg',
+  './assets/the-choppa-bg.png',
+  './assets/the-choppa-hero.png',
+  './assets/audio/mattbear-amen-to-that-demo.mp3'
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CHOPPA_CACHE)
-      .then(cache => cache.addAll(CORE))
+      .then(cache => cache.addAll(CORE).catch(() => cache.addAll(CORE.filter(url => !url.includes('/audio/')))))
       .then(() => self.skipWaiting())
   );
 });
