@@ -1,0 +1,69 @@
+name: Choppa Surgery
+
+on:
+  push:
+    paths:
+      - .github/workflows/choppa-surgery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  surgery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply tiny Choppa UI patches
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = s
+
+          # CSS-only scale and polish. Marker keeps reruns harmless.
+          marker = '/* CHOPPA_SURGERY_OVERRIDES_V1 */'
+          if marker not in s:
+              css = marker + r'''
+          html,body{font-size:18px;font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif}
+          .btn{min-height:48px;font-size:.92rem;padding:10px 14px;border-radius:13px}
+          .mini{min-height:42px;font-size:.86rem}
+          select,input[type=number]{min-height:48px;font-size:1rem;border-radius:13px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(0,0,0,.36));box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+          .dial input{display:none!important}
+          .fx .controls{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))!important}
+          .route-footer a{font-size:.9rem;padding:10px 14px}
+          .pill{font-size:.9rem;min-height:44px}
+          '''
+              s = s.replace('</style>', css + '\n</style>')
+
+          # Remove visible admin buttons/routes. Keep secret 5-click logo admin intact.
+          s = s.replace('<a href="#admin" id="adminFooter">Admin</a>', '')
+          s = s.replace('<button id="mobAdmin" class="btn">Admin</button>', '')
+
+          # Add more presets into existing preset object.
+          if 'tape:{filter:9800' not in s:
+              target = "space:{filter:13500,bigverb:.62,stutter:.22,drive:.05,crush:.02,gate:0,pitch:0,width:.78}}"
+              repl = "space:{filter:13500,bigverb:.62,stutter:.22,drive:.05,crush:.02,gate:0,pitch:0,width:.78},tape:{filter:9800,bigverb:.18,stutter:.08,drive:.34,crush:.16,gate:.04,pitch:-.25,width:.48},lofi:{filter:6400,bigverb:.20,stutter:.16,drive:.28,crush:.48,gate:.08,pitch:-.5,width:.42},wide:{filter:15000,bigverb:.34,stutter:.10,drive:.08,crush:.03,gate:0,pitch:0,width:.95},glitch:{filter:11800,bigverb:.24,stutter:.66,drive:.18,crush:.38,gate:.46,pitch:.25,width:.70}}"
+              s = s.replace(target, repl)
+
+          # Add preset buttons beside the current ones.
+          if 'data-preset="tape"' not in s:
+              target = '<button class="btn mini" data-preset="space">V Space</button>'
+              repl = target + '<button class="btn mini" data-preset="tape">Tape</button><button class="btn mini" data-preset="lofi">LoFi</button><button class="btn mini" data-preset="wide">Wide</button><button class="btn mini" data-preset="glitch">Glitch</button>'
+              s = s.replace(target, repl)
+
+          if s != old:
+              p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patched index
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "choppa-surgery-bot"
+          git config user.email "actions@github.com"
+          git add index.html
+          git commit -m "Apply small Choppa UI surgery [skip ci]"
+          git push
