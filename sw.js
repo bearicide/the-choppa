@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v11';
+const CHOPPA_CACHE = 'the-choppa-standalone-v12';
 const CORE = [
   './',
   './index.html',
@@ -13,7 +13,7 @@ const CORE = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CHOPPA_CACHE)
-      .then(cache => cache.addAll(CORE).catch(() => cache.addAll(CORE.filter(url => !url.endsWith('.mp3')))))
+      .then(cache => Promise.allSettled(CORE.map(url => cache.add(url))))
       .then(() => self.skipWaiting())
   );
 });
