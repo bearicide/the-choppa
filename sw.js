@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v10';
+const CHOPPA_CACHE = 'the-choppa-standalone-v11';
 const CORE = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const CORE = [
   './icons/choppa-icon.svg',
   './assets/the-choppa-bg.png',
   './assets/the-choppa-hero.png',
+  './assets/the-choppa-shortcuts.png',
   './assets/mattbear-amen-to-that-demo.mp3'
 ];
 
