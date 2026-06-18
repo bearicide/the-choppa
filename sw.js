@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v20';
+const CHOPPA_CACHE = 'the-choppa-standalone-v21';
 const CORE = [
   './',
   './index.html',
@@ -7,8 +7,29 @@ const CORE = [
   './assets/the-choppa-bg.png',
   './assets/the-choppa-hero.png',
   './assets/the-choppa-shortcuts.png',
-  './assets/mattbear-amen-to-that-demo.mp3'
+  './assets/mattbear-amen-to-that-demo.mp3',
+  './fx-v21.js'
 ];
+
+function tag() {
+  return '<scr' + 'ipt src="./fx-v21.js?v=21"></scr' + 'ipt>';
+}
+
+async function patchHtml(response) {
+  const html = await response.text();
+  if (html.includes('fx-v21.js')) return new Response(html, response);
+  const out = html.replace('</body>', tag() + '\n</body>');
+  return new Response(out, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers
+  });
+}
+
+function shouldPatch(request) {
+  const url = new URL(request.url);
+  return request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
+}
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -28,6 +49,18 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  if (shouldPatch(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const copy = response.clone();
+          if (response.ok) caches.open(CHOPPA_CACHE).then(cache => cache.put(event.request, copy));
+          return patchHtml(response);
+        })
+        .catch(() => caches.match(event.request).then(cached => cached ? patchHtml(cached) : cached))
+    );
+    return;
+  }
   event.respondWith(
     fetch(event.request)
       .then(response => {
