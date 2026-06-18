@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v13';
+const CHOPPA_CACHE = 'the-choppa-standalone-v14';
 const CORE = [
   './',
   './index.html',
