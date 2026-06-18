@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v16';
+const CHOPPA_CACHE = 'the-choppa-standalone-v17';
 const CORE = [
   './',
   './index.html',
@@ -11,10 +11,10 @@ const CORE = [
 ];
 
 const EXTRA_PATCH = `
-<style>
-.choppa-extra-banks{margin:16px 0;border:1px solid rgba(117,255,53,.45);border-radius:14px;background:linear-gradient(180deg,rgba(7,9,13,.92),rgba(3,4,7,.82));box-shadow:0 12px 38px rgba(0,0,0,.35);overflow:hidden}.choppa-extra-banks .ceb-head{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.14)}.choppa-extra-banks h2{margin:0;font:900 1.05rem Space Grotesk,Inter,sans-serif;letter-spacing:-.03em}.choppa-extra-banks .ceb-body{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}.choppa-extra-banks .ceb-box{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(0,0,0,.28);padding:12px}.choppa-extra-banks .ceb-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.choppa-extra-banks .ceb-btn{min-height:36px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(12,14,20,.9);color:#fff;font:900 .68rem JetBrains Mono,monospace;text-transform:uppercase;padding:7px 10px}.choppa-extra-banks .ceb-btn.green{background:linear-gradient(180deg,#75ff35,#1f7e16);color:#061707}.choppa-extra-banks .ceb-btn.yellow{background:linear-gradient(180deg,#f6ff2e,#878300);color:#101100}.choppa-extra-banks .ceb-btn.red{background:linear-gradient(180deg,#ff3a36,#7f0909)}.choppa-extra-banks .ceb-btn.active{outline:2px solid rgba(246,255,46,.65)}.choppa-extra-banks .ceb-note{margin:8px 0 0;color:#bdb3a5;font:800 .72rem Inter,sans-serif;line-height:1.35}.choppa-extra-banks .ceb-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}.choppa-extra-banks .ceb-slot{height:44px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:linear-gradient(180deg,#1a150b,#0b0907);color:#f6ff2e;font:900 .62rem JetBrains Mono,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 6px}.choppa-extra-banks .ceb-slot.loaded{background:linear-gradient(180deg,#12300e,#071407);color:#75ff35;border-color:rgba(117,255,53,.62)}.choppa-extra-banks input[type=range]{accent-color:#75ff35;max-width:160px}.choppa-extra-banks input[type=file]{display:none}@media(max-width:900px){.choppa-extra-banks .ceb-body{grid-template-columns:1fr}.choppa-extra-banks .ceb-slots{grid-template-columns:repeat(2,1fr)}}
+<style id="pad-toggle-v17-style">
+.choppa-extra-banks{margin:16px 0;border:1px solid rgba(117,255,53,.45);border-radius:14px;background:linear-gradient(180deg,rgba(7,9,13,.92),rgba(3,4,7,.82));box-shadow:0 12px 38px rgba(0,0,0,.35);overflow:hidden}.choppa-extra-banks .ceb-head{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.14)}.choppa-extra-banks h2{margin:0;font:900 1.05rem Space Grotesk,Inter,sans-serif;letter-spacing:-.03em}.choppa-extra-banks .ceb-body{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}.choppa-extra-banks .ceb-box{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(0,0,0,.28);padding:12px}.choppa-extra-banks .ceb-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.choppa-extra-banks .ceb-btn{min-height:36px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(12,14,20,.9);color:#fff;font:900 .68rem JetBrains Mono,monospace;text-transform:uppercase;padding:7px 10px}.choppa-extra-banks .ceb-btn.green{background:linear-gradient(180deg,#75ff35,#1f7e16);color:#061707}.choppa-extra-banks .ceb-btn.yellow{background:linear-gradient(180deg,#f6ff2e,#878300);color:#101100}.choppa-extra-banks .ceb-btn.red{background:linear-gradient(180deg,#ff3a36,#7f0909)}.choppa-extra-banks .ceb-btn.active{outline:2px solid rgba(246,255,46,.65)}.choppa-extra-banks .ceb-note{margin:8px 0 0;color:#bdb3a5;font:800 .72rem Inter,sans-serif;line-height:1.35}.choppa-extra-banks .ceb-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}.choppa-extra-banks .ceb-slot{height:44px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:linear-gradient(180deg,#1a150b,#0b0907);color:#f6ff2e;font:900 .62rem JetBrains Mono,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 6px}.choppa-extra-banks .ceb-slot.loaded{background:linear-gradient(180deg,#12300e,#071407);color:#75ff35;border-color:rgba(117,255,53,.62)}.choppa-extra-banks input[type=range]{accent-color:#75ff35;max-width:160px}.choppa-extra-banks input[type=file]{display:none}.pad.pad-kill-flash{transition:none!important;filter:brightness(.55)!important}@media(max-width:900px){.choppa-extra-banks .ceb-body{grid-template-columns:1fr}.choppa-extra-banks .ceb-slots{grid-template-columns:repeat(2,1fr)}}
 </style>
-<script>
+<script id="pad-toggle-v17">
 (() => {
   const isTypingTarget = el => {
     const tag = (el && el.tagName || '').toLowerCase();
@@ -28,6 +28,7 @@ const EXTRA_PATCH = `
   let bankPadMode = false;
   let bankSources = new Set();
   let bankVolume = 0.85;
+  let killUntil = 0;
 
   function showStatus(text) {
     const currentRead = document.getElementById('currentRead');
@@ -73,21 +74,41 @@ const EXTRA_PATCH = `
     showStatus('FX randomized');
   }
 
-  function panicStop() {
+  function visualOff(pad, forceOff = false) {
+    if (!pad) return;
+    pad.classList.add('pad-kill-flash');
+    pad.classList.remove('playing', 'looping', 'queued', 'is-on');
+    pad.classList.remove(forceOff ? 'is-neutral' : 'is-off');
+    pad.classList.add(forceOff ? 'is-off' : 'is-neutral');
+    setTimeout(() => pad.classList.remove('pad-kill-flash'), 90);
+  }
+
+  function allPadsOff() {
+    document.querySelectorAll('.pad').forEach(pad => visualOff(pad, false));
+  }
+
+  function hardStop(label = 'STOPPED') {
+    killUntil = performance.now() + 450;
     const stop = document.getElementById('stopBtn') || document.getElementById('mobStop');
     if (stop) stop.click();
     bankSources.forEach(src => { try { src.stop(); } catch (_) {} });
     bankSources.clear();
-    document.querySelectorAll('.pad').forEach(pad => {
-      pad.classList.remove('playing', 'looping', 'queued', 'is-on');
-      if (!pad.classList.contains('is-off')) pad.classList.add('is-neutral');
-    });
+    allPadsOff();
     const loopState = document.getElementById('loopState');
     if (loopState) {
       loopState.className = 'pill hot';
-      loopState.innerHTML = 'PANIC <strong>Stopped</strong>';
+      loopState.innerHTML = label === 'PANIC STOP' ? 'PANIC <strong>Stopped</strong>' : 'Loop <strong>Off</strong>';
     }
-    showStatus('PANIC STOP');
+    showStatus(label);
+  }
+
+  function isLitPad(pad) {
+    return pad && pad.classList && (
+      pad.classList.contains('playing') ||
+      pad.classList.contains('looping') ||
+      pad.classList.contains('queued') ||
+      pad.classList.contains('is-on')
+    );
   }
 
   function makeCtx() {
@@ -135,12 +156,7 @@ const EXTRA_PATCH = `
     if (pad) {
       pad.classList.add('playing', 'is-on');
       pad.classList.remove('is-off', 'is-neutral');
-      setTimeout(() => {
-        if (!pad.classList.contains('looping')) {
-          pad.classList.remove('playing', 'is-on', 'queued');
-          pad.classList.add(bankBuffers[i] ? 'is-neutral' : 'is-off');
-        }
-      }, Math.min(1800, Math.max(320, buf.duration * 1000)));
+      setTimeout(() => visualOff(pad, false), Math.min(1800, Math.max(260, buf.duration * 1000)));
     }
     return true;
   }
@@ -157,14 +173,11 @@ const EXTRA_PATCH = `
     });
   }
 
-  function autoPadOff(pad, ms = 1100) {
-    if (!pad || pad.__autoOffTimer) clearTimeout(pad && pad.__autoOffTimer);
+  function autoPadOff(pad, ms = 700) {
     if (!pad) return;
+    clearTimeout(pad.__autoOffTimer);
     pad.__autoOffTimer = setTimeout(() => {
-      if (!pad.classList.contains('looping')) {
-        pad.classList.remove('playing', 'is-on', 'queued');
-        if (!pad.classList.contains('is-off')) pad.classList.add('is-neutral');
-      }
+      if (!pad.classList.contains('looping')) visualOff(pad, false);
     }, ms);
   }
 
@@ -172,15 +185,13 @@ const EXTRA_PATCH = `
     const obs = new MutationObserver(items => {
       items.forEach(item => {
         const pad = item.target;
-        if (pad.classList && pad.classList.contains('pad') && pad.classList.contains('playing') && !pad.classList.contains('looping')) {
-          autoPadOff(pad, 1300);
-        }
+        if (isLitPad(pad) && !pad.classList.contains('looping')) autoPadOff(pad, 850);
       });
     });
     document.querySelectorAll('.pad').forEach(pad => obs.observe(pad, { attributes: true, attributeFilter: ['class'] }));
     document.addEventListener('pointerup', e => {
       const pad = e.target && e.target.closest && e.target.closest('.pad');
-      if (pad && !pad.classList.contains('looping')) autoPadOff(pad, 200);
+      if (pad && !pad.classList.contains('looping')) autoPadOff(pad, 120);
     }, true);
   }
 
@@ -188,7 +199,7 @@ const EXTRA_PATCH = `
     if (document.querySelector('.choppa-extra-banks')) return;
     const panel = document.createElement('section');
     panel.className = 'choppa-extra-banks wrap';
-    panel.innerHTML = '<div class="ceb-head"><h2>More FX + Sound Banks</h2><div class="ceb-row"><button id="cebBankMode" class="ceb-btn yellow">Bank Pads OFF</button><button id="cebStopBank" class="ceb-btn red">Stop Bank</button></div></div><div class="ceb-body"><div class="ceb-box"><div class="ceb-row"><button class="ceb-btn" data-fxbank="clean">Clean</button><button class="ceb-btn" data-fxbank="dirt">Dirt</button><button class="ceb-btn" data-fxbank="dub">Dub</button><button class="ceb-btn" data-fxbank="robot">Robot</button><button class="ceb-btn" data-fxbank="wide">Wide</button><button class="ceb-btn" data-fxbank="chip">Chip</button><button class="ceb-btn" data-fxbank="swamp">Swamp</button><button class="ceb-btn" id="cebRandom">Random</button><button class="ceb-btn green" data-fxbank="panicclean">Reset FX</button></div><p class="ceb-note">FX banks just set the existing knobs. Simple. No cathedral of menus. Humanity survives another day.</p></div><div class="ceb-box"><div class="ceb-row"><label class="ceb-btn green" for="cebFiles">Load Sound Bank</label><input id="cebFiles" type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.webm" multiple><label class="ceb-note">Vol <input id="cebVol" type="range" min="0" max="1" step=".01" value=".85"></label></div><div id="cebSlots" class="ceb-slots"></div><p class="ceb-note">Load up to 16 audio files. Pads/keys play bank slots when Bank Pads is ON. Any normal audio file should decode if the browser supports it.</p></div></div>';
+    panel.innerHTML = '<div class="ceb-head"><h2>More FX + Sound Banks</h2><div class="ceb-row"><button id="cebBankMode" class="ceb-btn yellow">Bank Pads OFF</button><button id="cebStopBank" class="ceb-btn red">Stop Bank</button></div></div><div class="ceb-body"><div class="ceb-box"><div class="ceb-row"><button class="ceb-btn" data-fxbank="clean">Clean</button><button class="ceb-btn" data-fxbank="dirt">Dirt</button><button class="ceb-btn" data-fxbank="dub">Dub</button><button class="ceb-btn" data-fxbank="robot">Robot</button><button class="ceb-btn" data-fxbank="wide">Wide</button><button class="ceb-btn" data-fxbank="chip">Chip</button><button class="ceb-btn" data-fxbank="swamp">Swamp</button><button class="ceb-btn" id="cebRandom">Random</button><button class="ceb-btn green" data-fxbank="panicclean">Reset FX</button></div><p class="ceb-note">FX banks set the existing knobs. Simple. No cathedral of menus.</p></div><div class="ceb-box"><div class="ceb-row"><label class="ceb-btn green" for="cebFiles">Load Sound Bank</label><input id="cebFiles" type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.webm" multiple><label class="ceb-note">Vol <input id="cebVol" type="range" min="0" max="1" step=".01" value=".85"></label></div><div id="cebSlots" class="ceb-slots"></div><p class="ceb-note">Load up to 16 audio files. Bank Pads ON makes pads/keys play bank slots. Tap a lit pad to shut it off.</p></div></div>';
     const anchor = document.querySelector('.mainGrid') || document.querySelector('.waveCard') || document.querySelector('main');
     if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(panel, anchor);
     else document.body.appendChild(panel);
@@ -206,11 +217,7 @@ const EXTRA_PATCH = `
     panel.querySelector('#cebRandom').addEventListener('click', randomFx);
     panel.querySelector('#cebFiles').addEventListener('change', e => loadBankFiles(e.target.files));
     panel.querySelector('#cebVol').addEventListener('input', e => { bankVolume = +e.target.value; });
-    panel.querySelector('#cebStopBank').addEventListener('click', () => {
-      bankSources.forEach(src => { try { src.stop(); } catch (_) {} });
-      bankSources.clear();
-      showStatus('Sound bank stopped');
-    });
+    panel.querySelector('#cebStopBank').addEventListener('click', () => hardStop('BANK STOP'));
     panel.querySelector('#cebBankMode').addEventListener('click', e => {
       bankPadMode = !bankPadMode;
       e.currentTarget.classList.toggle('active', bankPadMode);
@@ -219,13 +226,49 @@ const EXTRA_PATCH = `
     });
   }
 
+  document.addEventListener('pointerdown', e => {
+    const pad = e.target && e.target.closest && e.target.closest('.pad');
+    if (!pad) return;
+
+    if (performance.now() < killUntil) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      return;
+    }
+
+    if (isLitPad(pad)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      hardStop('PAD OFF');
+      return;
+    }
+
+    if (bankPadMode) {
+      const i = Array.from(document.querySelectorAll('.pad')).indexOf(pad);
+      if (i > -1 && bankBuffers[i]) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        playBankSlot(i);
+      }
+    }
+  }, true);
+
   window.addEventListener('keydown', e => {
     if (isTypingTarget(e.target)) return;
     if (e.code === 'Space' || e.key === ' ') {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      panicStop();
+      hardStop('PANIC STOP');
+      return;
+    }
+    if (performance.now() < killUntil) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
       return;
     }
     if (bankPadMode) {
@@ -236,19 +279,6 @@ const EXTRA_PATCH = `
         e.stopImmediatePropagation();
         playBankSlot(i);
       }
-    }
-  }, true);
-
-  document.addEventListener('pointerdown', e => {
-    if (!bankPadMode) return;
-    const pad = e.target && e.target.closest && e.target.closest('.pad');
-    if (!pad) return;
-    const i = Array.from(document.querySelectorAll('.pad')).indexOf(pad);
-    if (i > -1 && bankBuffers[i]) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      playBankSlot(i);
     }
   }, true);
 
@@ -263,7 +293,7 @@ const EXTRA_PATCH = `
 
 async function patchHtml(response) {
   const html = await response.text();
-  if (html.includes('choppa-extra-banks')) return new Response(html, response);
+  if (html.includes('pad-toggle-v17')) return new Response(html, response);
   return new Response(html.replace('</body>', `${EXTRA_PATCH}\n</body>`), {
     status: response.status,
     statusText: response.statusText,
