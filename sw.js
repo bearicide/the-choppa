@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v21';
+const CHOPPA_CACHE = 'the-choppa-standalone-v22';
 const CORE = [
   './',
   './index.html',
@@ -8,17 +8,19 @@ const CORE = [
   './assets/the-choppa-hero.png',
   './assets/the-choppa-shortcuts.png',
   './assets/mattbear-amen-to-that-demo.mp3',
-  './fx-v21.js'
+  './fx-v21.js',
+  './align-v22.js'
 ];
 
-function tag() {
-  return '<scr' + 'ipt src="./fx-v21.js?v=21"></scr' + 'ipt>';
+function tag(src) {
+  return '<scr' + 'ipt src="' + src + '"></scr' + 'ipt>';
 }
 
 async function patchHtml(response) {
   const html = await response.text();
-  if (html.includes('fx-v21.js')) return new Response(html, response);
-  const out = html.replace('</body>', tag() + '\n</body>');
+  let out = html;
+  if (!out.includes('fx-v21.js')) out = out.replace('</body>', tag('./fx-v21.js?v=21') + '\n</body>');
+  if (!out.includes('align-v22.js')) out = out.replace('</body>', tag('./align-v22.js?v=22') + '\n</body>');
   return new Response(out, {
     status: response.status,
     statusText: response.statusText,
@@ -66,9 +68,7 @@ self.addEventListener('fetch', event => {
       .then(response => {
         const copy = response.clone();
         const url = new URL(event.request.url);
-        if (url.origin === location.origin && response.ok) {
-          caches.open(CHOPPA_CACHE).then(cache => cache.put(event.request, copy));
-        }
+        if (url.origin === location.origin && response.ok) caches.open(CHOPPA_CACHE).then(cache => cache.put(event.request, copy));
         return response;
       })
       .catch(() => caches.match(event.request))
