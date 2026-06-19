@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v24-safe';
+const CHOPPA_CACHE = 'the-choppa-standalone-v25-midi-readout';
 const CORE = [
   './',
   './index.html',
@@ -9,7 +9,8 @@ const CORE = [
   './assets/the-choppa-shortcuts.png',
   './assets/mattbear-amen-to-that-demo.mp3',
   './fx-v21.js',
-  './align-v22.js'
+  './align-v22.js',
+  './midi-readout-v24.js'
 ];
 
 function tag(src) {
@@ -21,6 +22,7 @@ async function patchHtml(response) {
   let out = html;
   if (!out.includes('fx-v21.js')) out = out.replace('</body>', tag('./fx-v21.js?v=21') + '\n</body>');
   if (!out.includes('align-v22.js')) out = out.replace('</body>', tag('./align-v22.js?v=22') + '\n</body>');
+  if (!out.includes('midi-readout-v24.js')) out = out.replace('</body>', tag('./midi-readout-v24.js?v=24') + '\n</body>');
   return new Response(out, {
     status: response.status,
     statusText: response.statusText,
