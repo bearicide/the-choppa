@@ -21,7 +21,7 @@ async function patchHtml(response) {
 
 function shouldPatch(request) {
   const url = new URL(request.url);
-  return request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
+  return url.pathname.endsWith('/the-choppa/') || url.pathname.endsWith('/the-choppa/index.html');
 }
 
 async function clearOldCaches() {
