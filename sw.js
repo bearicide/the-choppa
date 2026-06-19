@@ -1,4 +1,4 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v23';
+const CHOPPA_CACHE = 'the-choppa-standalone-v24-safe';
 const CORE = [
   './',
   './index.html',
@@ -9,8 +9,7 @@ const CORE = [
   './assets/the-choppa-shortcuts.png',
   './assets/mattbear-amen-to-that-demo.mp3',
   './fx-v21.js',
-  './align-v22.js',
-  './launchkey-v23.js'
+  './align-v22.js'
 ];
 
 function tag(src) {
@@ -22,7 +21,6 @@ async function patchHtml(response) {
   let out = html;
   if (!out.includes('fx-v21.js')) out = out.replace('</body>', tag('./fx-v21.js?v=21') + '\n</body>');
   if (!out.includes('align-v22.js')) out = out.replace('</body>', tag('./align-v22.js?v=22') + '\n</body>');
-  if (!out.includes('launchkey-v23.js')) out = out.replace('</body>', tag('./launchkey-v23.js?v=23') + '\n</body>');
   return new Response(out, {
     status: response.status,
     statusText: response.statusText,
