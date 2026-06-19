@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Launchkey Capture V27 | The Choppa</title>
+<meta name="theme-color" content="#05060a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=JetBrains+Mono:wght@600;800&family=Space+Grotesk:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#05060a;--panel:#0b0d13;--line:rgba(255,255,255,.15);--text:#fff7e8;--muted:#bdb3a5;--y:#f6ff2e;--g:#75ff35;--r:#ff3a36;--c:#20e7ff;--p:#ff3fa7}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 80% 10%,rgba(255,63,167,.18),transparent 30%),radial-gradient(circle at 15% 90%,rgba(32,231,255,.18),transparent 30%),var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}.wrap{width:min(1180px,calc(100% - 28px));margin:auto;padding:22px 0 48px}.hero{display:grid;gap:10px;margin-bottom:14px}.hero h1{margin:0;font:900 clamp(2rem,6vw,4.6rem)/.9 Space Grotesk,sans-serif;letter-spacing:-.08em;text-transform:uppercase}.hero p{margin:0;color:var(--muted);font:800 .96rem/1.45 Inter,sans-serif;max-width:900px}.version{display:inline-flex;width:max-content;border:1px solid rgba(246,255,46,.4);border-radius:999px;color:#101100;background:linear-gradient(180deg,var(--y),#9b9700);padding:7px 12px;font:900 .75rem JetBrains Mono,monospace;letter-spacing:.04em}.panel{border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(13,15,23,.94),rgba(5,6,10,.86));box-shadow:0 18px 50px rgba(0,0,0,.35);overflow:hidden}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding:16px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(246,255,46,.12),rgba(32,231,255,.09),rgba(255,63,167,.08))}.head h2{margin:0;font:900 1.2rem Space Grotesk,sans-serif}.head p{margin:4px 0 0;color:var(--muted);font:700 .85rem/1.35 Inter,sans-serif}.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.btn{min-height:40px;border:1px solid rgba(255,255,255,.18);border-radius:10px;background:#11151f;color:#fff;font:900 .76rem Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em;padding:9px 12px;cursor:pointer}.btn.primary{background:linear-gradient(180deg,var(--y),#928d00);color:#111100}.btn.red{background:linear-gradient(180deg,var(--r),#830a0a)}.status{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:8px 11px;color:var(--y);font:900 .72rem Inter,sans-serif;text-transform:uppercase;letter-spacing:.05em}.status:before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}.status.on{color:var(--g)}.status.bad{color:var(--r)}.body{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(360px,1fr);gap:14px;padding:14px}.targets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.target{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;text-align:left;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.045);color:#fff;padding:11px;cursor:pointer}.target.active{outline:2px solid rgba(246,255,46,.56);background:rgba(246,255,46,.08)}.target.done{border-color:rgba(117,255,53,.45)}.target strong{display:block;font:900 .88rem Inter,sans-serif}.target small{display:block;margin-top:4px;color:var(--muted);font:700 .73rem/1.25 Inter,sans-serif;overflow-wrap:anywhere}.badge{border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:5px 8px;color:var(--muted);font:900 .62rem Inter,sans-serif;text-transform:uppercase}.target.done .badge{color:var(--g)}.screen{border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(0,0,0,.25);padding:14px;min-width:0}.label{display:block;margin-bottom:8px;color:var(--muted);font:900 .68rem Inter,sans-serif;text-transform:uppercase;letter-spacing:.08em}.big{font:900 clamp(1.55rem,4vw,2.8rem)/1.02 Space Grotesk,sans-serif;letter-spacing:-.05em;overflow-wrap:anywhere}.sub{margin-top:9px;color:#e7dfd2;font:700 .95rem/1.4 Inter,sans-serif}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.value{border:1px solid rgba(255,255,255,.11);border-radius:11px;background:rgba(255,255,255,.045);padding:10px}.value b{display:block;margin-bottom:5px;color:#fff;font:900 .72rem Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em}.value span{color:var(--c);font:900 1rem Inter,sans-serif;overflow-wrap:anywhere}.mono{font-family:JetBrains Mono,ui-monospace,monospace!important}.export{width:100%;min-height:170px;margin-top:14px;border:1px solid rgba(255,255,255,.12);border-radius:11px;background:rgba(0,0,0,.32);color:var(--y);font:800 .78rem/1.45 JetBrains Mono,ui-monospace,monospace;padding:11px;resize:vertical}.log{margin-top:12px;display:grid;gap:7px;max-height:170px;overflow:auto}.log div{border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.04);padding:8px 10px;color:var(--muted);font:800 .76rem/1.35 Inter,sans-serif}.log b{color:#fff}.note{margin-top:12px;color:var(--muted);font:700 .82rem/1.4 Inter,sans-serif}@media(max-width:960px){.body{grid-template-columns:1fr}.targets{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.head{display:grid}.actions{justify-content:flex-start}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <section class="hero">
+    <span class="version">LAUNCHKEY CAPTURE V27 · CLOCK FILTER ON</span>
+    <h1>Launchkey Capture</h1>
+    <p>This page captures exact Launchkey messages only. It ignores MIDI clock <b>248</b>, active sensing <b>254</b>, note releases, and repeated clock trash. It does not load the Choppa sampler, does not remap, and does not trigger audio.</p>
+  </section>
+
+  <section class="panel">
+    <div class="head">
+      <div>
+        <h2>Capture Checklist</h2>
+        <p>Select a slot, press the matching Launchkey control once. If the status only says “Ignoring clock,” that hardware button is not sending a usable Web MIDI message in this mode.</p>
+      </div>
+      <div class="actions">
+        <span id="status" class="status">Off</span>
+        <button id="start" class="btn primary">Start MIDI</button>
+        <button id="next" class="btn">Next Empty</button>
+        <button id="copy" class="btn">Copy JSON</button>
+        <button id="clear" class="btn red">Clear</button>
+      </div>
+    </div>
+    <div class="body">
+      <div id="targets" class="targets"></div>
+      <div class="screen">
+        <span class="label">Current Capture</span>
+        <div id="name" class="big">Shift</div>
+        <div id="help" class="sub">Click Start MIDI. Then press the selected Launchkey control once.</div>
+        <div class="grid">
+          <div class="value"><b>Signature</b><span id="sig" class="mono">-</span></div>
+          <div class="value"><b>Type</b><span id="type">-</span></div>
+          <div class="value"><b>Channel</b><span id="channel">-</span></div>
+          <div class="value"><b>Raw Bytes</b><span id="bytes" class="mono">-</span></div>
+        </div>
+        <textarea id="export" class="export" readonly spellcheck="false"></textarea>
+        <div id="log" class="log"><div><b>Ready.</b> No MIDI captured yet.</div></div>
+        <p class="note">Tip: if Play/Record/Stop only produce clock, try stopping any clock/sync/DAW mode on the Launchkey, then press the control again. MIDI loves making basic things weird, presumably for character development.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+(() => {
+  const TARGETS = [
+    ['shift', 'Shift'], ['transpose', 'Transpose'], ['octDown', 'Octave Down'], ['octUp', 'Octave Up'],
+    ['right', 'Right Arrow'], ['stopSoloMute', 'Stop / Solo / Mute'], ['arp', 'Arp'], ['fixedChord', 'Fixed Chord'],
+    ['play', 'Play'], ['record', 'Record'], ['pitch', 'Pitch Strip / Wheel'], ['mod', 'Mod Strip / Wheel']
+  ];
+  const STORE = 'choppa.launchkey.capture.v27';
+  const IGNORE = new Set([248, 254]);
+  const $ = id => document.getElementById(id);
+  let midiAccess = null;
+  let active = TARGETS[0][0];
+  let captures = load();
+  let ignored = 0;
+  let logItems = [];
+
+  function load(){ try { return JSON.parse(localStorage.getItem(STORE) || '{}') || {}; } catch { return {}; } }
+  function save(){ localStorage.setItem(STORE, JSON.stringify(captures, null, 2)); }
+  function label(id){ return (TARGETS.find(t => t[0] === id) || [id,id])[1]; }
+  function setStatus(text, cls=''){ const s=$('status'); s.className='status '+cls; s.textContent=text; }
+  function addLog(html){ logItems.unshift(html); logItems = logItems.slice(0, 8); $('log').innerHTML = logItems.map(x => '<div>'+x+'</div>').join(''); }
+
+  function signature(data){
+    const st=data[0], cmd=st & 240, ch=(st & 15)+1;
+    if(st>=248) return 'realtime:'+st;
+    if(cmd===144 || cmd===128) return 'note:'+data[1];
+    if(cmd===176) return 'cc:'+data[1];
+    if(cmd===224) return 'pitchbend:ch'+ch;
+    if(cmd===192) return 'program:'+data[1];
+    if(cmd===208) return 'pressure:ch'+ch;
+    if(cmd===160) return 'poly:'+data[1];
+    return 'raw:'+data.join('-');
+  }
+  function typeOf(data){
+    const st=data[0], cmd=st & 240, d2=data[2] ?? 0;
+    if(cmd===144 && d2>0) return 'NOTE ON';
+    if(cmd===128 || (cmd===144 && d2===0)) return 'NOTE OFF';
+    if(cmd===176) return 'CONTROL CHANGE';
+    if(cmd===224) return 'PITCH BEND';
+    if(cmd===192) return 'PROGRAM CHANGE';
+    if(cmd===208) return 'CHANNEL PRESSURE';
+    if(cmd===160) return 'POLY AFTERTOUCH';
+    if(st>=248) return 'REALTIME / TRANSPORT';
+    return 'RAW MIDI';
+  }
+  function channel(data){ return data[0] >= 240 ? 'system' : String((data[0] & 15)+1); }
+  function ignoredClock(data){ return data.length === 1 && IGNORE.has(data[0]); }
+  function worthy(data){
+    if(!data.length || ignoredClock(data)) return false;
+    const cmd=data[0] & 240;
+    if(cmd===128) return false;
+    if(cmd===144 && (data[2] || 0) === 0) return false;
+    return true;
+  }
+
+  function render(){
+    $('targets').innerHTML = TARGETS.map(([id, name]) => {
+      const r = captures[id];
+      return `<button class="target ${id===active?'active':''} ${r?'done':''}" data-id="${id}">
+        <span><strong>${name}</strong><small>${r ? r.signature + ' · ' + r.raw.join(', ') : 'Not captured yet'}</small></span>
+        <span class="badge">${r?'saved':'empty'}</span>
+      </button>`;
+    }).join('');
+    document.querySelectorAll('[data-id]').forEach(btn => btn.onclick = () => { active = btn.dataset.id; render(); });
+    const r = captures[active];
+    $('name').textContent = label(active);
+    $('help').textContent = r ? 'Captured. Press again to replace, or move to Next Empty.' : 'Waiting for this control. MIDI clock 248 is ignored.';
+    $('sig').textContent = r?.signature || '-';
+    $('type').textContent = r?.type || '-';
+    $('channel').textContent = r?.channel || '-';
+    $('bytes').textContent = r ? r.raw.join(', ') : '-';
+    $('export').value = JSON.stringify(captures, null, 2);
+  }
+
+  function nextEmpty(){ const n = TARGETS.find(([id]) => !captures[id]); if(n) active = n[0]; render(); }
+
+  function onMidi(ev){
+    const data = Array.from(ev.data || []);
+    if(ignoredClock(data)){
+      ignored++;
+      if(ignored === 1 || ignored % 96 === 0){ setStatus('Ignoring clock '+ignored, ''); addLog('<b>Ignored clock.</b> raw '+data.join(', ')); }
+      return;
+    }
+    if(!worthy(data)) return;
+    const rec = { label: label(active), signature: signature(data), type: typeOf(data), channel: channel(data), raw: data, source: ev.currentTarget?.name || ev.target?.name || 'MIDI device', capturedAt: new Date().toISOString() };
+    captures[active] = rec;
+    save();
+    setStatus('Captured '+label(active), 'on');
+    addLog('<b>Captured '+label(active)+'.</b> '+rec.signature+' · raw '+rec.raw.join(', '));
+    ignored = 0;
+    render();
+    nextEmpty();
+  }
+
+  async function start(){
+    if(!navigator.requestMIDIAccess){ setStatus('Unsupported','bad'); $('help').textContent='This browser does not support Web MIDI.'; return; }
+    try{
+      setStatus('Requesting MIDI','');
+      midiAccess = await navigator.requestMIDIAccess();
+      let count = 0;
+      midiAccess.inputs.forEach(input => { count++; if(!input.__captureV27){ input.__captureV27 = true; input.addEventListener('midimessage', onMidi); } });
+      midiAccess.addEventListener?.('statechange', () => start());
+      setStatus(count ? 'Listening '+count+' input'+(count===1?'':'s') : 'No inputs', count ? 'on' : 'bad');
+      addLog('<b>MIDI armed.</b> '+count+' input(s). Clock 248 ignored.');
+    }catch(err){ setStatus('Blocked','bad'); $('help').textContent='MIDI permission blocked: '+err.message; }
+  }
+
+  $('start').onclick = start;
+  $('next').onclick = nextEmpty;
+  $('copy').onclick = async () => { const text = JSON.stringify(captures, null, 2); $('export').value = text; try{ await navigator.clipboard.writeText(text); setStatus('Copied JSON','on'); }catch{ $('export').select(); setStatus('Select JSON',''); } };
+  $('clear').onclick = () => { captures = {}; save(); active = TARGETS[0][0]; ignored = 0; logItems = []; $('log').innerHTML='<div><b>Cleared.</b> Ready.</div>'; render(); setStatus('Cleared',''); };
+  render();
+})();
+</script>
+</body>
+</html>
