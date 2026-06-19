@@ -1,17 +1,5 @@
-const CHOPPA_CACHE = 'the-choppa-standalone-v25-midi-readout';
-const CORE = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './icons/choppa-icon.svg',
-  './assets/the-choppa-bg.png',
-  './assets/the-choppa-hero.png',
-  './assets/the-choppa-shortcuts.png',
-  './assets/mattbear-amen-to-that-demo.mp3',
-  './fx-v21.js',
-  './align-v22.js',
-  './midi-readout-v24.js'
-];
+// THE CHOPPA — temporary dev loader only.
+// PWA/offline caching is intentionally disabled until the app is stable.
 
 function tag(src) {
   return '<scr' + 'ipt src="' + src + '"></scr' + 'ipt>';
@@ -35,44 +23,33 @@ function shouldPatch(request) {
   return request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
 }
 
+async function clearOldCaches() {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter(key => key.startsWith('the-choppa-')).map(key => caches.delete(key)));
+}
+
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CHOPPA_CACHE)
-      .then(cache => Promise.allSettled(CORE.map(url => cache.add(url))))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CHOPPA_CACHE).map(key => caches.delete(key))))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil(clearOldCaches().then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
   if (shouldPatch(event.request)) {
     event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          if (response.ok) caches.open(CHOPPA_CACHE).then(cache => cache.put(event.request, copy));
-          return patchHtml(response);
-        })
-        .catch(() => caches.match(event.request).then(cached => cached ? patchHtml(cached) : cached))
+      fetch(event.request, { cache: 'no-store' })
+        .then(response => patchHtml(response))
+        .catch(() => new Response('The Choppa failed to load from network. Offline/PWA cache is disabled during development.', {
+          status: 503,
+          headers: { 'content-type': 'text/plain; charset=utf-8' }
+        }))
     );
     return;
   }
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        const copy = response.clone();
-        const url = new URL(event.request.url);
-        if (url.origin === location.origin && response.ok) caches.open(CHOPPA_CACHE).then(cache => cache.put(event.request, copy));
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+
+  event.respondWith(fetch(event.request, { cache: 'no-store' }));
 });
