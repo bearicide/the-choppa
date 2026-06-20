@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Choppa Reset</title>
+<style>
+:root{color-scheme:dark;--bg:#05060a;--panel:#11131a;--line:rgba(255,255,255,.16);--text:#fff7e8;--muted:#bdb3a5;--good:#75ff35;--bad:#ff3a36;--warn:#f6ff2e}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif;padding:18px}.box{width:min(760px,100%);border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#181b24,var(--panel));padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.45)}h1{margin:0 0 8px;font-size:clamp(2rem,6vw,4rem);line-height:.95;letter-spacing:-.06em;text-transform:uppercase}p{color:var(--muted);font-weight:700;line-height:1.45}.status{margin-top:14px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.24);padding:12px;font:800 .95rem/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap}.ok{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}a,button{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;margin-right:8px;min-height:42px;border:1px solid rgba(255,255,255,.18);border-radius:10px;background:#20242f;color:var(--text);font-weight:900;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;padding:10px 13px;cursor:pointer}.primary{background:#252500;color:var(--warn);border-color:rgba(246,255,46,.45)}
+</style>
+</head>
+<body>
+<main class="box">
+<h1>Choppa Reset</h1>
+<p>This page unregisters every service worker on this origin and deletes Choppa caches. No sampler, no MIDI, no animation circus.</p>
+<div id="status" class="status warn">Starting reset...</div>
+<button id="again">Run Reset Again</button>
+<a class="primary" href="./?clean=1">Open Choppa Clean</a>
+<a href="./launchkey-capture.html?v=28">Open Capture V28</a>
+</main>
+<script>
+const out = document.getElementById('status');
+function line(text, cls='') { out.innerHTML += '\n' + (cls ? '<span class="'+cls+'">'+text+'</span>' : text); }
+async function reset(){
+  out.textContent = 'Starting reset...';
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      line('Service workers found: '+regs.length);
+      for (const reg of regs) {
+        await reg.unregister();
+        line('Unregistered: '+(reg.scope || 'unknown scope'), 'ok');
+      }
+    } else {
+      line('Service workers unsupported in this browser.');
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      const choppa = keys.filter(k => k.startsWith('the-choppa-'));
+      line('Choppa caches found: '+choppa.length);
+      for (const key of choppa) {
+        await caches.delete(key);
+        line('Deleted cache: '+key, 'ok');
+      }
+    }
+    try {
+      localStorage.removeItem('choppa.launchkey.capture.v25');
+      localStorage.removeItem('choppa.launchkey.capture.v26');
+      localStorage.removeItem('choppa.launchkey.capture.v27');
+      line('Cleared old capture localStorage.', 'ok');
+    } catch {}
+    line('Reset complete. Now open Choppa clean.', 'ok');
+  } catch (err) {
+    line('RESET ERROR: '+err.message, 'bad');
+  }
+}
+document.getElementById('again').onclick = reset;
+reset();
+</script>
+</body>
+</html>
