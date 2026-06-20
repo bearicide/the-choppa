@@ -9,6 +9,7 @@ function tag(src) {
 async function patchHtml(response) {
   const html = await response.text();
   let out = html;
+  if (!out.includes('pad-layout-v23.js')) out = out.replace('</head>', tag('./pad-layout-v23.js?v=23') + '\n</head>');
   if (!out.includes('fx-v21.js')) out = out.replace('</body>', tag('./fx-v21.js?v=21') + '\n</body>');
   if (!out.includes('align-v22.js')) out = out.replace('</body>', tag('./align-v22.js?v=22') + '\n</body>');
   return new Response(out, {
