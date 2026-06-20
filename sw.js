@@ -1,34 +1,19 @@
-// THE CHOPPA — temporary dev loader only.
-// PWA/offline caching is intentionally disabled until the app is stable.
-// MIDI diagnostics live on standalone capture pages only.
-
-function tag(src) {
-  return '<scr' + 'ipt src="' + src + '"></scr' + 'ipt>';
-}
-
-async function patchHtml(response) {
-  const html = await response.text();
-  let out = html;
-  if (!out.includes('pad-layout-v23.js')) out = out.replace('</head>', tag('./pad-layout-v23.js?v=23') + '\n</head>');
-  if (!out.includes('fx-v21.js')) out = out.replace('</body>', tag('./fx-v21.js?v=21') + '\n</body>');
-  if (!out.includes('align-v22.js')) out = out.replace('</body>', tag('./align-v22.js?v=22') + '\n</body>');
-  if (!out.includes('loop-state-v24.js')) out = out.replace('</body>', tag('./loop-state-v24.js?v=24') + '\n</body>');
-  if (!out.includes('fx-knobs-v25.js')) out = out.replace('</body>', tag('./fx-knobs-v25.js?v=25') + '\n</body>');
-  return new Response(out, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers
-  });
-}
-
-function shouldPatch(request) {
-  const url = new URL(request.url);
-  return url.pathname.endsWith('/the-choppa/') || url.pathname.endsWith('/the-choppa/index.html');
-}
+// THE CHOPPA — SERVICE WORKER DISABLED
+// Function first. No PWA. No dev injection. No fetch interception.
+// This worker unregisters itself and clears old Choppa caches.
 
 async function clearOldCaches() {
   const keys = await caches.keys();
   await Promise.all(keys.filter(key => key.startsWith('the-choppa-')).map(key => caches.delete(key)));
+}
+
+async function shutDown() {
+  await clearOldCaches();
+  await self.registration.unregister();
+  const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const client of clientsList) {
+    client.postMessage({ type: 'CHOPPA_SW_DISABLED' });
+  }
 }
 
 self.addEventListener('install', event => {
@@ -36,23 +21,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(clearOldCaches().then(() => self.clients.claim()));
+  event.waitUntil(shutDown().then(() => self.clients.claim()));
 });
 
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-
-  if (shouldPatch(event.request)) {
-    event.respondWith(
-      fetch(event.request, { cache: 'no-store' })
-        .then(response => patchHtml(response))
-        .catch(() => new Response('The Choppa failed to load from network. Offline/PWA cache is disabled during development.', {
-          status: 503,
-          headers: { 'content-type': 'text/plain; charset=utf-8' }
-        }))
-    );
-    return;
-  }
-
-  event.respondWith(fetch(event.request, { cache: 'no-store' }));
-});
+// Intentionally no fetch handler.
