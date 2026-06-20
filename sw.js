@@ -13,6 +13,7 @@ async function patchHtml(response) {
   if (!out.includes('fx-v21.js')) out = out.replace('</body>', tag('./fx-v21.js?v=21') + '\n</body>');
   if (!out.includes('align-v22.js')) out = out.replace('</body>', tag('./align-v22.js?v=22') + '\n</body>');
   if (!out.includes('loop-state-v24.js')) out = out.replace('</body>', tag('./loop-state-v24.js?v=24') + '\n</body>');
+  if (!out.includes('fx-knobs-v25.js')) out = out.replace('</body>', tag('./fx-knobs-v25.js?v=25') + '\n</body>');
   return new Response(out, {
     status: response.status,
     statusText: response.statusText,
