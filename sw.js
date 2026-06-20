@@ -1,5 +1,6 @@
 // THE CHOPPA — temporary dev loader only.
 // PWA/offline caching is intentionally disabled until the app is stable.
+// MIDI diagnostics live on standalone capture pages only.
 
 function tag(src) {
   return '<scr' + 'ipt src="' + src + '"></scr' + 'ipt>';
@@ -10,8 +11,6 @@ async function patchHtml(response) {
   let out = html;
   if (!out.includes('fx-v21.js')) out = out.replace('</body>', tag('./fx-v21.js?v=21') + '\n</body>');
   if (!out.includes('align-v22.js')) out = out.replace('</body>', tag('./align-v22.js?v=22') + '\n</body>');
-  if (!out.includes('midi-readout-v24.js')) out = out.replace('</body>', tag('./midi-readout-v24.js?v=24') + '\n</body>');
-  if (!out.includes('midi-capture-v26.js')) out = out.replace('</body>', tag('./midi-capture-v26.js?v=26') + '\n</body>');
   return new Response(out, {
     status: response.status,
     statusText: response.statusText,
